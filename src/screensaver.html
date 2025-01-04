@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Screensaver</title>
+    <style>
+        * { margin: 0; padding: 0; overflow: hidden; }
+        body { background: #000; }
+        iframe { width: 100vw; height: 100vh; border: 0; }
+    </style>
+</head>
+<body>
+    <iframe src="https://main.d14a7pjxtutfzh.amplifyapp.com/c9c6d4e2-e14c-471e-b4f0-ae58e5eecb64" allow="autoplay"></iframe>
+    <script>
+        window.onload = function() {
+            document.documentElement.requestFullscreen().catch(console.error);
+        };
+        function exitScreensaver() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().then(function() { window.close(); }).catch(function() { window.close(); });
+            } else {
+                window.close();
+            }
+        }
+        window.addEventListener("keydown", exitScreensaver);
+        window.addEventListener("mousedown", exitScreensaver);
+        window.addEventListener("mousemove", exitScreensaver);
+        window.addEventListener("click", exitScreensaver);
+    </script>
+</body>
+</html>
