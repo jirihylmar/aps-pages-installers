@@ -1,0 +1,31 @@
+# Build outputs
+build/
+src/ApsScreensaver/bin/
+src/ApsScreensaver/obj/
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Screensaver binary
+*.scr
+
+# WebView2 temp data
+*WebView2/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
