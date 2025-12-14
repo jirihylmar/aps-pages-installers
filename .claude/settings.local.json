@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --version:*)",
+      "Bash(where:*)",
+      "Bash(dotnet --list-sdks:*)",
+      "Bash(dotnet --list-runtimes:*)",
+      "Bash(.build.ps1)",
+      "Bash(powershell -ExecutionPolicy Bypass -File .build.ps1)",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"C:\\Users\\jirih\\aps-pages-installers\\build.ps1\")",
+      "Bash(powershell:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "Bash(GIT_TERMINAL_PROMPT=0 git push:*)",
+      "Bash(git lfs:*)",
+      "Bash(winget install:*)",
+      "Bash(git reset:*)",
+      "Bash(gh --version:*)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth status)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth login --with-token)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" auth setup-git)",
+      "Bash(\"C:\\Program Files\\GitHub CLI\\gh.exe\" release create:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
