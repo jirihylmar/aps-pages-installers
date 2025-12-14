@@ -334,4 +334,10 @@ dotnet --version  # Should show 8.0.x
 
 ## License
 
-Internal APS Pages project.
+MIT License - see [LICENSE](LICENSE) file.
+
+## Author & Contact
+
+**Jiří Hylmar**
+- Email: info@hylmar.eu
+- Phone: +420 736 504 011

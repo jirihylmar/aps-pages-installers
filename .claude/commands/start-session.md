@@ -1,6 +1,8 @@
 # Start Development Session
 
-Execute the following procedures to start a development session for APS Screensaver:
+Execute the following procedures to start a development session for APS Screensaver.
+
+**Note:** This app is developed on this computer only. Skip unnecessary rebuilds if build already exists.
 
 ## 1. Environment Verification
 
@@ -36,47 +38,36 @@ git status
 # Check for unpushed commits
 git log origin/main..main --oneline
 
-# Pull latest changes
+# Pull latest changes (if needed)
 git pull origin main
 ```
 
-## 3. Clean Build
+## 3. Check Existing Build
+
+Only rebuild if necessary (code changes or no build exists):
 
 ```powershell
-# Clean previous build artifacts
-Remove-Item -Path "build\*" -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "src\ApsScreensaver\bin" -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -Path "src\ApsScreensaver\obj" -Recurse -Force -ErrorAction SilentlyContinue
+# Check if build exists
+if (Test-Path "build\ApsScreensaver.scr") {
+    $size = [math]::Round((Get-Item "build\ApsScreensaver.scr").Length / 1MB, 2)
+    $lastModified = (Get-Item "build\ApsScreensaver.scr").LastWriteTime
+    Write-Host "Build exists: $size MB (modified: $lastModified)"
+} else {
+    Write-Host "No build found - rebuild required"
+}
+```
 
-# Build the project
+**If rebuild is needed:**
+
+```powershell
 .\build.ps1
 ```
 
-**Expected result:** Build succeeds with no errors or warnings
-
-## 4. Verify Build Output
-
-```powershell
-# Check that screensaver was created
-Test-Path "build\ApsScreensaver.scr"
-
-# Check file size (should be ~148 MB)
-(Get-Item "build\ApsScreensaver.scr").Length / 1MB
-```
-
-## 5. Quick Test
-
-```powershell
-# Test screensaver in preview mode (should exit cleanly with ESC)
-.\build\ApsScreensaver.scr /s
-```
-
-## Summary
+## 4. Summary
 
 After completing these steps, you should have:
-- ✅ Clean working directory
-- ✅ Latest code from main branch
-- ✅ Fresh build of ApsScreensaver.scr
-- ✅ Verified build output
+- ✅ Environment verified
+- ✅ Git status checked
+- ✅ Build available (existing or fresh)
 
 **Ready to develop!**
