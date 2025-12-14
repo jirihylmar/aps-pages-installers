@@ -5,10 +5,13 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
 ## Features
 
 - **Native Windows Screensaver**: Standard .scr file recognized by Windows
+- **Configurable URL**: Set any web page URL via Windows screensaver settings
 - **WebView2 Integration**: Uses Microsoft Edge WebView2 for reliable web rendering
 - **Multi-Monitor Support**: Single display spanning all connected monitors (works best with duplicate display mode)
 - **Reliable Exit**: Press any key, move mouse, or click to exit
 - **Error Logging**: Detailed error logs for troubleshooting
+
+> **Note**: This screensaver displays content from the internet. An active internet connection is required for the screensaver to work.
 
 ## For End Users
 
@@ -16,12 +19,13 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
 
 - Windows 10/11 (64-bit)
 - Microsoft Edge WebView2 Runtime ([download here](https://go.microsoft.com/fwlink/p/?LinkId=2124703))
+- **Internet connection** (content is loaded from the web each time the screensaver starts)
 - **Multi-monitor setup**: Use **Duplicate** display mode (`Win + P` → Duplicate)
 
 ### Installation
 
 1. **Download the screensaver**:
-   - Get `ApsScreensaver.scr` from the latest release or build folder
+   - Get `ApsScreensaver.scr` from the latest release
 
 2. **Install WebView2 Runtime** (if not already installed):
    - Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703
@@ -29,25 +33,26 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
    - Follow the prompts
 
 3. **Install the screensaver**:
-   - **Option A - System-wide** (all users):
-     - Right-click on `ApsScreensaver.scr`
-     - Select "Install"
-     - Windows will copy it to `C:\Windows\System32\`
-
-   - **Option B - Manual**:
-     - Copy `ApsScreensaver.scr` to `C:\Windows\System32\`
-     - (Requires administrator access)
+   - Right-click on `ApsScreensaver.scr`
+   - Select **"Install"**
+   - Windows will copy it to `C:\Windows\System32\`
+   - **After installation, you can delete the downloaded file** - it's no longer needed
 
 4. **Configure the screensaver**:
-   - Right-click on desktop
-   - Select "Personalize"
+   - Right-click on desktop → "Personalize"
    - Click "Lock screen" (Windows 11) or "Screen Saver" (Windows 10)
    - In Windows 11: Click "Screen saver"
-   - Select "ApsScreensaver" from the dropdown
+   - Select **"ApsScreensaver"** from the dropdown
+   - Click **"Settings..."** to configure the URL
    - Set wait time (e.g., 5 minutes)
    - Click "Apply" then "OK"
 
-5. **For multiple monitors**:
+5. **Set a custom URL** (optional):
+   - In the screensaver selection dialog, click **"Settings..."**
+   - Enter your custom URL (e.g., `https://main.d14a7pjxtutfzh.amplifyapp.com/your-page-id`)
+   - Click "OK" to save
+
+6. **For multiple monitors**:
    - Press `Win + P`
    - Select **Duplicate**
    - This ensures stable performance across all displays
@@ -62,7 +67,9 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
 
 1. Open screensaver settings
 2. Change to a different screensaver (e.g., "Blank")
-3. Delete `C:\Windows\System32\ApsScreensaver.scr`
+3. Delete `C:\Windows\System32\ApsScreensaver.scr` (requires administrator access)
+
+The screensaver stores its URL setting in the Windows Registry at `HKEY_CURRENT_USER\Software\APS\Screensaver`. This is automatically cleaned up if you use the `uninstall.ps1` script.
 
 ### Troubleshooting
 
@@ -178,16 +185,25 @@ aps-pages-installers/
    - Logs errors to `%TEMP%\ApsScreensaver_Error.log` if WebView2 fails
 
 3. **Settings** (SettingsForm.cs):
-   - Simple configuration dialog
-   - Shows current URL
-   - Future: Allow URL customization
+   - Configuration dialog accessible from Windows screensaver settings
+   - Allows users to set a custom URL
+   - URL validation (must be valid HTTP/HTTPS)
+   - Settings stored in Windows Registry
+
+4. **Settings Persistence** (ScreensaverSettings.cs):
+   - Stores URL in `HKCU\Software\APS\Screensaver`
+   - Provides default URL if none configured
 
 ### Customizing the URL
 
-To change the URL, edit `src/ApsScreensaver/ScreensaverForm.cs`:
+The URL can be configured by end users via the Settings dialog (accessed from Windows screensaver settings).
+
+Settings are stored in the Windows Registry at `HKEY_CURRENT_USER\Software\APS\Screensaver`.
+
+To change the default URL, edit `src/ApsScreensaver/ScreensaverSettings.cs`:
 
 ```csharp
-private const string SCREENSAVER_URL = "https://your-url-here.com/";
+public const string DefaultUrl = "https://your-url-here.com/";
 ```
 
 Then rebuild and reinstall.

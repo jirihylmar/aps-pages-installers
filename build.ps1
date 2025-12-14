@@ -16,7 +16,7 @@ try {
     $dotnetVersion = dotnet --version
     Write-Host "Found .NET SDK version: $dotnetVersion" -ForegroundColor Green
 } catch {
-    Write-Host "ERROR: .NET SDK not found. Please install .NET 6.0 SDK or later." -ForegroundColor Red
+    Write-Host "ERROR: .NET SDK not found. Please install .NET 8.0 SDK or later." -ForegroundColor Red
     Write-Host "Download from: https://dotnet.microsoft.com/download" -ForegroundColor Yellow
     exit 1
 }
@@ -47,7 +47,7 @@ if (Test-Path $OutputDir) {
 try {
     Write-Host "Running dotnet publish..." -ForegroundColor Yellow
 
-    $publishOutput = Join-Path $ProjectDir "bin\$Configuration\net6.0-windows\win-x64\publish"
+    $publishOutput = Join-Path $ProjectDir "bin\$Configuration\net8.0-windows\win-x64\publish"
 
     dotnet publish $ProjectFile `
         -c $Configuration `

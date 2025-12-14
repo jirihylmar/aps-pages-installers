@@ -12,6 +12,7 @@ Write-Host ""
 $SystemScr = Join-Path $env:SystemRoot "System32\ApsScreensaver.scr"
 $UserScr = Join-Path $env:USERPROFILE "AppData\Local\Screensavers\ApsScreensaver.scr"
 $TempWebView = Join-Path $env:TEMP "ApsScreensaver_WebView2"
+$RegistryPath = "HKCU:\Software\APS\Screensaver"
 
 $removed = $false
 
@@ -48,6 +49,27 @@ if (Test-Path $TempWebView) {
         Write-Host "Removed: $TempWebView" -ForegroundColor Green
     } catch {
         Write-Host "WARNING: Could not remove WebView2 temp data: $_" -ForegroundColor Yellow
+    }
+}
+
+# Remove registry settings
+if (Test-Path $RegistryPath) {
+    Write-Host "Removing registry settings..." -ForegroundColor Yellow
+    try {
+        Remove-Item -Path $RegistryPath -Recurse -Force
+        Write-Host "Removed registry settings" -ForegroundColor Green
+
+        # Clean up parent key if empty
+        $parentPath = "HKCU:\Software\APS"
+        if (Test-Path $parentPath) {
+            $children = Get-ChildItem -Path $parentPath -ErrorAction SilentlyContinue
+            if ($null -eq $children -or $children.Count -eq 0) {
+                Remove-Item -Path $parentPath -Force
+                Write-Host "Removed empty parent registry key" -ForegroundColor Green
+            }
+        }
+    } catch {
+        Write-Host "WARNING: Could not remove registry settings: $_" -ForegroundColor Yellow
     }
 }
 

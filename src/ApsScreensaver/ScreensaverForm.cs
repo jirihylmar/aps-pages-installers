@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Web.WebView2.Core;
@@ -9,17 +10,28 @@ namespace ApsScreensaver
     public class ScreensaverForm : Form
     {
         private WebView2 webView;
-        private Point mouseLocation;
+        private Point initialMouseLocation;
         private bool isInitializing = true;
-        private const int MOUSE_MOVE_THRESHOLD = 10; // pixels
+        private Timer inputCheckTimer;
+        private const int MOUSE_MOVE_THRESHOLD = 5; // pixels
 
-        // Default URL - can be configured
-        private const string SCREENSAVER_URL = "https://main.d14a7pjxtutfzh.amplifyapp.com/";
+        // For detecting global input
+        [DllImport("user32.dll")]
+        private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LASTINPUTINFO
+        {
+            public uint cbSize;
+            public uint dwTime;
+        }
+
+        private uint lastInputTime;
 
         public ScreensaverForm(Rectangle bounds)
         {
             InitializeComponent(bounds);
-            SetupEventHandlers();
+            SetupInputMonitoring();
         }
 
         private void InitializeComponent(Rectangle bounds)
@@ -31,9 +43,7 @@ namespace ApsScreensaver
             this.Bounds = bounds;
             this.TopMost = true;
             this.ShowInTaskbar = false;
-            this.Cursor = Cursors.Default;
             this.BackColor = Color.Black;
-            this.KeyPreview = true; // Capture keyboard events before child controls
 
             // WebView2 setup
             webView = new WebView2
@@ -42,14 +52,95 @@ namespace ApsScreensaver
                 Visible = false // Hide until loaded
             };
 
-            // Hook WebView2 keyboard events
-            webView.KeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-            webView.PreviewKeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-
             this.Controls.Add(webView);
 
             // Initialize WebView2
             InitializeWebView();
+        }
+
+        private void SetupInputMonitoring()
+        {
+            // Store initial mouse position
+            initialMouseLocation = Cursor.Position;
+
+            // Get initial input time
+            LASTINPUTINFO lii = new LASTINPUTINFO();
+            lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
+            GetLastInputInfo(ref lii);
+            lastInputTime = lii.dwTime;
+
+            // Use a timer to check for any user input
+            inputCheckTimer = new Timer();
+            inputCheckTimer.Interval = 100; // Check every 100ms
+            inputCheckTimer.Tick += InputCheckTimer_Tick;
+
+            this.Load += (s, e) =>
+            {
+                this.TopMost = true;
+                Cursor.Hide();
+
+                // Start monitoring after a short delay to avoid initial input noise
+                Timer startTimer = new Timer();
+                startTimer.Interval = 1000; // 1 second delay
+                startTimer.Tick += (ss, ee) =>
+                {
+                    startTimer.Stop();
+                    startTimer.Dispose();
+                    isInitializing = false;
+
+                    // Reset initial values after initialization
+                    initialMouseLocation = Cursor.Position;
+                    LASTINPUTINFO lii2 = new LASTINPUTINFO();
+                    lii2.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
+                    GetLastInputInfo(ref lii2);
+                    lastInputTime = lii2.dwTime;
+
+                    inputCheckTimer.Start();
+                };
+                startTimer.Start();
+            };
+        }
+
+        private void InputCheckTimer_Tick(object sender, EventArgs e)
+        {
+            if (isInitializing) return;
+
+            // Check for any keyboard or mouse input using GetLastInputInfo
+            LASTINPUTINFO lii = new LASTINPUTINFO();
+            lii.cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO));
+
+            if (GetLastInputInfo(ref lii))
+            {
+                if (lii.dwTime != lastInputTime)
+                {
+                    // Input detected - but also check mouse movement threshold
+                    Point currentMouse = Cursor.Position;
+                    int deltaX = Math.Abs(currentMouse.X - initialMouseLocation.X);
+                    int deltaY = Math.Abs(currentMouse.Y - initialMouseLocation.Y);
+
+                    // Close if keyboard input OR significant mouse movement
+                    if (deltaX > MOUSE_MOVE_THRESHOLD || deltaY > MOUSE_MOVE_THRESHOLD)
+                    {
+                        CloseScreensaver();
+                    }
+                    else
+                    {
+                        // Small mouse movement - update last input time but don't close
+                        // This handles mouse jitter
+                        // But if it's keyboard input, close immediately
+                        uint timeDiff = lii.dwTime - lastInputTime;
+                        if (timeDiff > 0)
+                        {
+                            // Check if mouse barely moved - if so, it's likely keyboard
+                            if (deltaX <= 1 && deltaY <= 1)
+                            {
+                                CloseScreensaver();
+                            }
+                        }
+                        lastInputTime = lii.dwTime;
+                    }
+                }
+            }
         }
 
         private async void InitializeWebView()
@@ -59,7 +150,7 @@ namespace ApsScreensaver
                 // Create a unique temporary user data folder for WebView2
                 string userDataFolder = System.IO.Path.Combine(
                     System.IO.Path.GetTempPath(),
-                    "ApsScreensaver_WebView2_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+                    "ApsScreensaver_WebView2_" + Guid.NewGuid().ToString("N").Substring(0, 8)
                 );
 
                 // Ensure the folder exists
@@ -80,16 +171,15 @@ namespace ApsScreensaver
                 webView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = false;
                 webView.CoreWebView2.Settings.IsZoomControlEnabled = false;
 
-                // Load the URL
-                webView.CoreWebView2.Navigate(SCREENSAVER_URL);
+                // Load the URL from settings
+                string url = ScreensaverSettings.GetUrl();
+                webView.CoreWebView2.Navigate(url);
 
                 // Show webview after navigation starts
                 webView.Visible = true;
-                isInitializing = false;
             }
             catch (Exception ex)
             {
-                // CRITICAL: Set isInitializing to false so keyboard events work
                 isInitializing = false;
 
                 // Log detailed error information
@@ -125,54 +215,10 @@ namespace ApsScreensaver
             }
         }
 
-        private void SetupEventHandlers()
-        {
-            // Store initial mouse position
-            mouseLocation = Control.MousePosition;
-
-            // Keyboard events - don't close during initialization
-            this.KeyPress += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-            this.KeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-
-            // Mouse events
-            this.MouseMove += OnMouseMove;
-            this.MouseDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-            this.MouseClick += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-
-            // Form events - don't close during initialization
-            this.Deactivate += (s, e) => { if (!isInitializing) CloseScreensaver(); };
-            this.Load += ScreensaverForm_Load;
-        }
-
-        private void ScreensaverForm_Load(object sender, EventArgs e)
-        {
-            // Make sure we're on top and cursor is hidden
-            this.TopMost = true;
-            Cursor.Hide();
-        }
-
-        private void OnMouseMove(object sender, MouseEventArgs e)
-        {
-            // Don't close during initialization
-            if (isInitializing) return;
-
-            // Only close if mouse moved significantly
-            if (!mouseLocation.IsEmpty)
-            {
-                int deltaX = Math.Abs(e.X - mouseLocation.X);
-                int deltaY = Math.Abs(e.Y - mouseLocation.Y);
-
-                if (deltaX > MOUSE_MOVE_THRESHOLD || deltaY > MOUSE_MOVE_THRESHOLD)
-                {
-                    CloseScreensaver();
-                }
-            }
-
-            mouseLocation = e.Location;
-        }
-
         private void CloseScreensaver()
         {
+            inputCheckTimer?.Stop();
+            inputCheckTimer?.Dispose();
             Cursor.Show();
             Application.Exit();
         }
@@ -181,6 +227,8 @@ namespace ApsScreensaver
         {
             if (disposing)
             {
+                inputCheckTimer?.Stop();
+                inputCheckTimer?.Dispose();
                 webView?.Dispose();
             }
             base.Dispose(disposing);
