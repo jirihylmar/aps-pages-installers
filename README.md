@@ -25,20 +25,29 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
 ### Installation
 
 1. **Download the screensaver**:
-   - Get `ApsScreensaver.scr` from the latest release
+   - Get `ApsScreensaver-vX.X.X.zip` from the [latest release](https://github.com/jirihylmar/aps-pages-installers/releases)
+   - Extract the zip file
 
 2. **Install WebView2 Runtime** (if not already installed):
    - Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703
    - Double-click the installer
    - Follow the prompts
 
-3. **Install the screensaver**:
+3. **Unblock the file** (Windows security):
+   - Right-click on `ApsScreensaver.scr`
+   - Select **Properties**
+   - At the bottom, check **"Unblock"** if present
+   - Click **Apply** → **OK**
+
+   > **Note:** Windows SmartScreen may show "Unknown publisher" warning because the app is not code-signed. This is normal for open-source software. Click "More info" → "Run anyway" to proceed.
+
+4. **Install the screensaver**:
    - Right-click on `ApsScreensaver.scr`
    - Select **"Install"**
    - Windows will copy it to `C:\Windows\System32\`
-   - **After installation, you can delete the downloaded file** - it's no longer needed
+   - **After installation, you can delete the downloaded files**
 
-4. **Configure the screensaver**:
+5. **Configure the screensaver**:
    - Right-click on desktop → "Personalize"
    - Click "Lock screen" (Windows 11) or "Screen Saver" (Windows 10)
    - In Windows 11: Click "Screen saver"
@@ -47,12 +56,12 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
    - Set wait time (e.g., 5 minutes)
    - Click "Apply" then "OK"
 
-5. **Set a custom URL** (optional):
+6. **Set a custom URL** (optional):
    - In the screensaver selection dialog, click **"Settings..."**
    - Enter your custom URL (e.g., `https://main.d14a7pjxtutfzh.amplifyapp.com/your-page-id`)
    - Click "OK" to save
 
-6. **For multiple monitors**:
+7. **For multiple monitors**:
    - Press `Win + P`
    - Select **Duplicate**
    - This ensures stable performance across all displays
