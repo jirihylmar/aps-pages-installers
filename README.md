@@ -1,88 +1,149 @@
 # APS Pages Screensaver
 
-A proper Windows screensaver (.scr) that displays APS Pages content using Microsoft Edge WebView2. This is a native Windows screensaver implementation that replaces the previous browser-based approach.
+A Windows screensaver that displays APS Pages content using Microsoft Edge WebView2. Native .scr file with standard Windows screensaver behavior.
 
 ## Features
 
-- **Proper Windows Screensaver**: Native .scr file with standard Windows screensaver behavior
-- **WebView2 Integration**: Uses Microsoft Edge WebView2 for reliable web content rendering
-- **No Browser Processes**: Embeds web rendering directly without launching separate browser windows
-- **Proper Event Handling**: Reliable mouse and keyboard detection for exiting screensaver
-- **Multi-Monitor Support**: Single form spanning all connected displays (works best with duplicate display mode)
-- **Clean Exit**: Properly handles user input without getting stuck
-- **Settings Dialog**: Standard Windows screensaver settings interface
-- **Error Logging**: Detailed error logs for troubleshooting WebView2 issues
+- **Native Windows Screensaver**: Standard .scr file recognized by Windows
+- **WebView2 Integration**: Uses Microsoft Edge WebView2 for reliable web rendering
+- **Multi-Monitor Support**: Single display spanning all connected monitors (works best with duplicate display mode)
+- **Reliable Exit**: Press any key, move mouse, or click to exit
+- **Error Logging**: Detailed error logs for troubleshooting
 
-## Requirements
+## For End Users
+
+### Requirements
 
 - Windows 10/11 (64-bit)
-- .NET 8.0 SDK (for building)
-- Microsoft Edge WebView2 Runtime (required - see Installation section)
-- **Display Settings**: For multi-monitor setups, use **Duplicate** display mode for best results
+- Microsoft Edge WebView2 Runtime ([download here](https://go.microsoft.com/fwlink/p/?LinkId=2124703))
+- **Multi-monitor setup**: Use **Duplicate** display mode (`Win + P` → Duplicate)
 
-## Quick Start
+### Installation
 
-### Option 1: Build and Install (Recommended)
+1. **Download the screensaver**:
+   - Get `ApsScreensaver.scr` from the latest release or build folder
 
-1. **Install WebView2 Runtime** (if not already installed):
-   - The install script will check and guide you
-   - Or download directly: https://go.microsoft.com/fwlink/p/?LinkId=2124703
+2. **Install WebView2 Runtime** (if not already installed):
+   - Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703
+   - Double-click the installer
+   - Follow the prompts
 
-2. **Install .NET 8.0 SDK**:
-   - Download from: https://dotnet.microsoft.com/download/dotnet/8.0
-   - Install the Windows x64 SDK installer
+3. **Install the screensaver**:
+   - **Option A - System-wide** (all users):
+     - Right-click on `ApsScreensaver.scr`
+     - Select "Install"
+     - Windows will copy it to `C:\Windows\System32\`
 
-3. **Build the screensaver**:
+   - **Option B - Manual**:
+     - Copy `ApsScreensaver.scr` to `C:\Windows\System32\`
+     - (Requires administrator access)
+
+4. **Configure the screensaver**:
+   - Right-click on desktop
+   - Select "Personalize"
+   - Click "Lock screen" (Windows 11) or "Screen Saver" (Windows 10)
+   - In Windows 11: Click "Screen saver"
+   - Select "ApsScreensaver" from the dropdown
+   - Set wait time (e.g., 5 minutes)
+   - Click "Apply" then "OK"
+
+5. **For multiple monitors**:
+   - Press `Win + P`
+   - Select **Duplicate**
+   - This ensures stable performance across all displays
+
+### Testing
+
+- Click "Preview" in screensaver settings to test
+- Press `ESC` or any key to exit
+- Move mouse to exit
+
+### Uninstall
+
+1. Open screensaver settings
+2. Change to a different screensaver (e.g., "Blank")
+3. Delete `C:\Windows\System32\ApsScreensaver.scr`
+
+### Troubleshooting
+
+#### Error: "Failed to initialize screensaver"
+
+1. **Install WebView2 Runtime**:
+   - Download: https://go.microsoft.com/fwlink/p/?LinkId=2124703
+   - Run the installer
+
+2. **Check display mode**:
+   - Press `Win + P`
+   - Select **Duplicate** (not Extended)
+
+3. **Check error log**:
+   - Press `Win + R`
+   - Type: `%TEMP%\ApsScreensaver_Error.log`
+   - Press Enter
+   - Share the log contents for support
+
+#### Can't exit screensaver
+
+- Press `ESC` or any key
+- Move the mouse
+- If still stuck: Press `Ctrl+Alt+Delete` → Task Manager → End "ApsScreensaver.scr"
+
+#### Preview shows error or doesn't work
+
+- This is normal during first installation
+- Try the full screensaver activation instead
+- Make sure WebView2 Runtime is installed
+
+---
+
+## For Developers
+
+### Requirements
+
+- Windows 10/11 (64-bit)
+- .NET 8.0 SDK ([download](https://dotnet.microsoft.com/download/dotnet/8.0))
+- Microsoft Edge WebView2 Runtime
+- Git (optional)
+
+### Building from Source
+
+1. **Install .NET 8.0 SDK**:
+   ```powershell
+   # Download from: https://dotnet.microsoft.com/download/dotnet/8.0
+   # Install the Windows x64 SDK
+   ```
+
+2. **Clone or download the repository**:
+   ```powershell
+   git clone <repository-url>
+   cd aps-pages-installers
+   ```
+
+3. **Build**:
    ```powershell
    .\build.ps1
    ```
+   Output: `build\ApsScreensaver.scr` (~148 MB)
 
-4. **Install the screensaver** (requires administrator):
+4. **Install** (requires administrator):
    ```powershell
-   # Right-click PowerShell and "Run as Administrator"
+   # Right-click PowerShell → "Run as Administrator"
    .\install.ps1
    ```
-   The script will automatically check for WebView2 Runtime and prompt if missing.
 
-5. **Configure in Windows**:
-   - Right-click on desktop → Personalize → Lock screen → Screen saver settings
-   - Select "ApsScreensaver" from the dropdown
-   - Set your desired wait time
-   - Click "Apply" and "OK"
+5. **Test without installing**:
+   ```powershell
+   # Run in screensaver mode
+   .\build\ApsScreensaver.scr /s
 
-6. **For multi-monitor setups**:
-   - Press `Win + P`
-   - Select **Duplicate** display mode
-   - This ensures the screensaver displays correctly across all monitors
+   # Run settings dialog
+   .\build\ApsScreensaver.scr /c
 
-### Option 2: Manual Installation
+   # Preview mode
+   .\build\ApsScreensaver.scr /p
+   ```
 
-1. Build the screensaver using `.\build.ps1`
-2. Copy `build\ApsScreensaver.scr` to `C:\Windows\System32\`
-3. Configure in Windows screensaver settings
-
-## Architecture
-
-### Previous Implementation (Legacy)
-
-The old implementation used PowerShell to:
-- Monitor user activity via Windows API
-- Launch Chrome/Edge in kiosk mode
-- Display web content in an iframe
-- **Problems**: Cross-origin iframe issues, browser process cleanup, stuck screensaver
-
-The legacy files are available in the `legacy/` folder.
-
-### New Implementation (Current)
-
-The new implementation uses C# with:
-- **Native Windows screensaver** (.scr file format)
-- **WebView2** for embedded web rendering
-- **Proper command-line arguments**: `/s` (show), `/p` (preview), `/c` (configure)
-- **Direct event handling**: No iframe cross-origin issues
-- **Clean process management**: No zombie browser processes
-
-#### Project Structure
+### Project Structure
 
 ```
 aps-pages-installers/
@@ -92,9 +153,6 @@ aps-pages-installers/
 │       ├── Program.cs            # Entry point and command-line handling
 │       ├── ScreensaverForm.cs   # Main screensaver window with WebView2
 │       └── SettingsForm.cs      # Configuration dialog
-├── legacy/                       # Old PowerShell implementation
-│   ├── ScreensaverManager.ps1
-│   └── screensaver.html
 ├── build/                        # Build output (created by build.ps1)
 │   └── ApsScreensaver.scr
 ├── build.ps1                     # Build script
@@ -102,18 +160,18 @@ aps-pages-installers/
 └── uninstall.ps1                # Uninstallation script
 ```
 
-#### How It Works
+### How It Works
 
 1. **Command-Line Processing** (Program.cs):
-   - Windows calls the .scr file with arguments
-   - `/s` → Show screensaver (single form spanning all monitors)
-   - `/c` → Show settings dialog
-   - `/p [hwnd]` → Preview mode (shows simple preview text)
+   - Windows calls the .scr file with arguments:
+     - `/s` → Show screensaver (single form spanning all monitors)
+     - `/c` → Show settings dialog
+     - `/p [hwnd]` → Preview mode (shows simple preview text)
 
 2. **Screensaver Display** (ScreensaverForm.cs):
    - Creates single fullscreen borderless window spanning all monitors
    - Initializes WebView2 with unique temporary user data folder
-   - Loads APS Pages URL
+   - Loads APS Pages URL: `https://main.d14a7pjxtutfzh.amplifyapp.com/`
    - Monitors for user input with `KeyPreview = true` and WebView2 event hooks
    - Prevents premature exit during initialization with `isInitializing` flag
    - Exits cleanly on any keyboard/mouse input
@@ -124,61 +182,6 @@ aps-pages-installers/
    - Shows current URL
    - Future: Allow URL customization
 
-## Building from Source
-
-### Prerequisites
-
-Install .NET 8.0 SDK:
-```powershell
-# Download from: https://dotnet.microsoft.com/download/dotnet/8.0
-# Use the Windows x64 SDK installer
-```
-
-### Build Process
-
-The `build.ps1` script:
-1. Checks for .NET SDK
-2. Compiles the C# project
-3. Publishes as a self-contained single-file executable
-4. Copies the .exe to `build/ApsScreensaver.scr`
-
-Output is a ~148MB self-contained screensaver that includes .NET 8.0 runtime and WebView2 bootstrapper.
-
-## Installation
-
-### System-Wide Installation (Requires Admin)
-
-```powershell
-.\install.ps1
-```
-
-Installs to `C:\Windows\System32\ApsScreensaver.scr`
-
-### User Installation (No Admin)
-
-```powershell
-.\install.ps1 -User
-```
-
-Installs to `%USERPROFILE%\AppData\Local\Screensavers\ApsScreensaver.scr`
-
-## Uninstallation
-
-```powershell
-.\uninstall.ps1
-```
-
-Removes the screensaver and cleans up temporary WebView2 data.
-
-## Configuration
-
-### Current URL
-
-The screensaver currently displays:
-```
-https://main.d14a7pjxtutfzh.amplifyapp.com/
-```
-
 ### Customizing the URL
 
 To change the URL, edit `src/ApsScreensaver/ScreensaverForm.cs`:
@@ -187,152 +190,132 @@ To change the URL, edit `src/ApsScreensaver/ScreensaverForm.cs`:
 private const string SCREENSAVER_URL = "https://your-url-here.com/";
 ```
 
-Then rebuild and reinstall the screensaver.
+Then rebuild and reinstall.
 
-## Troubleshooting
+### Build Process
 
-### WebView2 Runtime Missing
+The `build.ps1` script:
+1. Checks for .NET 8.0 SDK
+2. Compiles the C# project in Release configuration
+3. Publishes as a self-contained single-file executable
+4. Copies the .exe to `build/ApsScreensaver.scr`
 
-The install script automatically checks for WebView2 Runtime. If you see an error:
+Output is a ~148MB self-contained screensaver that includes .NET 8.0 runtime.
 
-1. **Download WebView2 Runtime**:
-   - Direct link: https://go.microsoft.com/fwlink/p/?LinkId=2124703
-   - Or visit: https://developer.microsoft.com/microsoft-edge/webview2/
-   - Install the "Evergreen Standalone Installer"
+### Installation Scripts
 
-2. **Verify Installation**:
-   ```powershell
-   # Check registry for WebView2
-   Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue
-   ```
+**install.ps1** (requires administrator):
+- Checks for WebView2 Runtime installation
+- Prompts to download if missing
+- Copies .scr to `C:\Windows\System32\`
+- Can use `-User` flag to install to user directory instead
 
-### Screensaver Shows Error Dialog
+**uninstall.ps1**:
+- Removes the screensaver from system directory
+- Cleans up temporary WebView2 data
 
-If you see "Failed to initialize screensaver: Operation aborted (0x80004004)":
+### Development Tips
 
-1. **Check Error Log**:
-   - Location: `%TEMP%\ApsScreensaver_Error.log`
-   - Open with: `notepad $env:TEMP\ApsScreensaver_Error.log`
-   - The log shows detailed error information
-
-2. **Common Causes**:
-   - WebView2 Runtime not installed or corrupted
-   - Using Extended display mode with multiple monitors
-   - WebView2 temporary folder permissions issue
-
-3. **Solutions**:
-   - Reinstall WebView2 Runtime
-   - Switch to **Duplicate** display mode (`Win + P` → Duplicate)
-   - Reinstall the screensaver with `.\install.ps1`
-
-### Screensaver Won't Exit (Keyboard/Mouse Not Working)
-
-This was the main problem with the old implementation. The current version fixes this:
-
-- **Form-level keyboard capture**: `KeyPreview = true` ensures the form receives keyboard events
-- **WebView2 keyboard events**: Hooked directly to close screensaver
-- **Initialization flag**: Prevents race conditions during WebView2 startup
-- **Error handler fix**: Sets `isInitializing = false` so keyboard works even if WebView2 fails
-
-The screensaver exits on:
-- Any keyboard press (ESC, Enter, Space, etc.)
-- Mouse movement (threshold: 10 pixels)
-- Mouse clicks
-- Window deactivation
-
-If it still gets stuck (very unlikely):
-- Press `Ctrl+Alt+Delete` → Task Manager
-- End the "ApsScreensaver.scr" process
-
-### Multi-Monitor Issues
-
-**Recommended Setup for Multiple Monitors**:
-1. Press `Win + P`
-2. Select **Duplicate** display mode
-3. The screensaver will display the same content on all monitors
-
-**Why Duplicate Mode?**
-- Single WebView2 instance (more stable, less resource usage)
-- Avoids synchronization issues
-- Better performance
-- Consistent experience across all displays
-
-**Extended Mode**:
-Extended display mode is supported (single form spans all monitors), but Duplicate mode is recommended for best stability.
-
-### Build Errors
-
-- **Ensure .NET 8.0 SDK is installed**:
-  ```powershell
-  dotnet --version  # Should show 8.0.x
-  ```
-
-- **If .NET SDK not found**:
-  - Download: https://dotnet.microsoft.com/download/dotnet/8.0
-  - Install the Windows x64 SDK
-  - Restart PowerShell
-
-- **Check build output** for specific errors
-
-## Development
-
-### Testing Without Installing
-
+**Verify .NET SDK**:
 ```powershell
-# Build the screensaver
-.\build.ps1
+dotnet --version  # Should show 8.0.x
+```
 
-# Run in screensaver mode
+**Check WebView2 Installation**:
+```powershell
+Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" -ErrorAction SilentlyContinue
+```
+
+**Build in Debug Mode**:
+```powershell
+dotnet build src/ApsScreensaver/ApsScreensaver.csproj -c Debug
+```
+
+### Technical Details
+
+**Multi-Monitor Handling**:
+- Single form spans entire virtual screen area
+- Single WebView2 instance (avoids conflicts)
+- Recommended: Duplicate display mode for best stability
+- Extended mode supported but may have performance impact
+
+**WebView2 Configuration**:
+- Unique temporary folder per instance: `%TEMP%\ApsScreensaver_WebView2_[GUID]`
+- Disabled context menus, dev tools, zoom controls
+- No script dialogs or status bar
+
+**Keyboard Event Handling**:
+- `KeyPreview = true` on form (captures before child controls)
+- WebView2 control keyboard events
+- `isInitializing` flag prevents race conditions
+- Events hooked: KeyPress, KeyDown, PreviewKeyDown
+
+**Error Logging**:
+- Log file: `%TEMP%\ApsScreensaver_Error.log`
+- Contains: timestamp, exception type, message, stack trace, HRESULT
+- Created automatically on WebView2 initialization errors
+
+### Troubleshooting (Developers)
+
+**Build Errors**:
+```powershell
+# Ensure .NET 8.0 SDK is installed
+dotnet --version  # Should show 8.0.x
+
+# If not found
+# Download: https://dotnet.microsoft.com/download/dotnet/8.0
+# Restart PowerShell after installation
+```
+
+**WebView2 Issues**:
+- Check error log: `%TEMP%\ApsScreensaver_Error.log`
+- Common HRESULT: `0x80004004` (E_ABORT) = operation cancelled
+- Usually caused by: missing WebView2, multi-monitor conflicts, or permissions
+
+**Testing**:
+```powershell
+# Quick test without installation
 .\build\ApsScreensaver.scr /s
 
-# Run settings dialog
-.\build\ApsScreensaver.scr /c
+# Test on specific monitor setup
+# Use Duplicate mode: Win+P → Duplicate
 ```
 
-### Debug Mode
+## Architecture
 
-For development, build in Debug configuration:
-```powershell
-.\build.ps1 -Configuration Debug
-```
+### Technology Stack
 
-## Comparison: Old vs New
+- **Framework**: .NET 8.0 (C#)
+- **UI**: Windows Forms
+- **Web Rendering**: Microsoft Edge WebView2
+- **Target**: Windows 10/11 (x64)
+- **Deployment**: Self-contained single-file executable
 
-| Aspect | Old (PowerShell + Browser) | New (C# + WebView2) |
-|--------|---------------------------|---------------------|
-| Type | PowerShell script | Native .scr file |
-| Framework | PowerShell 5.1 | .NET 8.0 |
-| Rendering | Chrome/Edge kiosk mode | Embedded WebView2 |
-| Process | Separate browser process | Single process |
-| Exit Detection | Fragile (iframe issues) | Reliable (direct events) |
-| Multi-Monitor | Multiple browser windows | Single form spanning all displays |
-| Installation | Manual/Task Scheduler | Standard Windows installer |
-| Configuration | Command-line parameters | Settings dialog |
-| Cleanup | Manual process killing | Automatic |
-| Size | ~1 MB + browser | ~148 MB self-contained |
-| Getting Stuck | Common | Fixed with initialization flag |
-| Error Logging | None | Detailed log file |
+### Why These Technologies?
 
-## Why the Redesign?
+**Native Windows Screensaver**:
+- Proper .scr file format recognized by Windows
+- Standard installation and configuration
+- No background processes or scheduled tasks
 
-The previous PowerShell implementation had critical issues:
+**WebView2 over Browser Launch**:
+- Embedded rendering (no separate browser windows)
+- No iframe cross-origin issues
+- Better resource cleanup
+- Direct event handling
+- Single process
 
-1. **Cross-Origin Iframe Problems**: User input events were blocked by iframe security
-2. **Browser Process Cleanup**: Chrome/Edge processes would remain stuck
-3. **Not a Real Screensaver**: Windows didn't recognize it as a screensaver
-4. **Fragile Exit Logic**: Activity detection was unreliable
+**Single Form Multi-Monitor**:
+- One WebView2 instance (stable, efficient)
+- No synchronization issues
+- Lower memory footprint
+- Simpler event handling
 
-The new C# implementation:
-- Is a proper Windows screensaver that Windows recognizes
-- Embeds web rendering directly (no iframe)
-- Handles events reliably
-- Cleans up automatically
-- Never gets stuck
+**Self-Contained Deployment**:
+- No .NET runtime installation required
+- Works on any Windows 10/11 machine
+- Larger file size (~148MB) but simpler deployment
 
 ## License
 
 Internal APS Pages project.
-
-## Legacy Documentation
-
-For the old PowerShell implementation, see `legacy/README.md` (if needed).
