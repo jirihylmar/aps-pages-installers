@@ -13,6 +13,54 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== APS Screensaver Installation ===" -ForegroundColor Cyan
 Write-Host ""
 
+# Check for WebView2 Runtime
+Write-Host "Checking for Microsoft Edge WebView2 Runtime..." -ForegroundColor Yellow
+$WebView2Installed = $false
+
+# Check registry for WebView2
+$WebView2Paths = @(
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+    "HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+)
+
+foreach ($path in $WebView2Paths) {
+    if (Test-Path $path) {
+        $version = (Get-ItemProperty -Path $path -ErrorAction SilentlyContinue).pv
+        if ($version) {
+            $WebView2Installed = $true
+            Write-Host "WebView2 Runtime found (version: $version)" -ForegroundColor Green
+            break
+        }
+    }
+}
+
+if (-not $WebView2Installed) {
+    Write-Host ""
+    Write-Host "WARNING: Microsoft Edge WebView2 Runtime is NOT installed!" -ForegroundColor Red
+    Write-Host "The screensaver requires WebView2 Runtime to function." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Download from: https://developer.microsoft.com/microsoft-edge/webview2/#download-section" -ForegroundColor Cyan
+    Write-Host "Choose: 'Evergreen Standalone Installer'" -ForegroundColor White
+    Write-Host ""
+
+    $response = Read-Host "Open download page in browser? (Y/N)"
+    if ($response -eq 'Y' -or $response -eq 'y') {
+        Start-Process "https://developer.microsoft.com/microsoft-edge/webview2/#download-section"
+        Write-Host ""
+        Write-Host "Please install WebView2 Runtime, then run this script again." -ForegroundColor Yellow
+        exit 0
+    }
+
+    Write-Host ""
+    $continue = Read-Host "Continue installation without WebView2? (Y/N)"
+    if ($continue -ne 'Y' -and $continue -ne 'y') {
+        Write-Host "Installation cancelled." -ForegroundColor Yellow
+        exit 0
+    }
+}
+
+Write-Host ""
+
 # Paths
 $BuildDir = Join-Path $PSScriptRoot "build"
 $SourceScr = Join-Path $BuildDir "ApsScreensaver.scr"

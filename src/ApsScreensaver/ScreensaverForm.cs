@@ -10,7 +10,7 @@ namespace ApsScreensaver
     {
         private WebView2 webView;
         private Point mouseLocation;
-        private bool isLoaded = false;
+        private bool isInitializing = true;
         private const int MOUSE_MOVE_THRESHOLD = 10; // pixels
 
         // Default URL - can be configured
@@ -33,6 +33,7 @@ namespace ApsScreensaver
             this.ShowInTaskbar = false;
             this.Cursor = Cursors.Default;
             this.BackColor = Color.Black;
+            this.KeyPreview = true; // Capture keyboard events before child controls
 
             // WebView2 setup
             webView = new WebView2
@@ -40,6 +41,10 @@ namespace ApsScreensaver
                 Dock = DockStyle.Fill,
                 Visible = false // Hide until loaded
             };
+
+            // Hook WebView2 keyboard events
+            webView.KeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
+            webView.PreviewKeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
 
             this.Controls.Add(webView);
 
@@ -51,11 +56,14 @@ namespace ApsScreensaver
         {
             try
             {
-                // Create a temporary user data folder for WebView2
+                // Create a unique temporary user data folder for WebView2
                 string userDataFolder = System.IO.Path.Combine(
                     System.IO.Path.GetTempPath(),
-                    "ApsScreensaver_WebView2"
+                    "ApsScreensaver_WebView2_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
                 );
+
+                // Ensure the folder exists
+                System.IO.Directory.CreateDirectory(userDataFolder);
 
                 var environment = await CoreWebView2Environment.CreateAsync(
                     null,
@@ -77,18 +85,42 @@ namespace ApsScreensaver
 
                 // Show webview after navigation starts
                 webView.Visible = true;
-                isLoaded = true;
+                isInitializing = false;
             }
             catch (Exception ex)
             {
+                // CRITICAL: Set isInitializing to false so keyboard events work
+                isInitializing = false;
+
+                // Log detailed error information
+                string errorLog = System.IO.Path.Combine(
+                    System.IO.Path.GetTempPath(),
+                    "ApsScreensaver_Error.log"
+                );
+
+                try
+                {
+                    System.IO.File.WriteAllText(errorLog,
+                        $"Error Time: {DateTime.Now}\n" +
+                        $"Exception Type: {ex.GetType().Name}\n" +
+                        $"Message: {ex.Message}\n" +
+                        $"Stack Trace:\n{ex.StackTrace}\n" +
+                        $"HRESULT: {ex.HResult:X8}\n"
+                    );
+                }
+                catch { }
+
                 // If WebView2 fails, show error and close
                 MessageBox.Show(
-                    $"Failed to initialize screensaver: {ex.Message}\n\n" +
-                    "Please ensure Microsoft Edge WebView2 Runtime is installed.",
+                    $"Failed to initialize screensaver:\n{ex.Message}\n\n" +
+                    $"Error logged to:\n{errorLog}\n\n" +
+                    "Please ensure Microsoft Edge WebView2 Runtime is installed.\n" +
+                    "You can press ESC to close this dialog.",
                     "Screensaver Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error
                 );
+                this.Close();
                 Application.Exit();
             }
         }
@@ -98,17 +130,17 @@ namespace ApsScreensaver
             // Store initial mouse position
             mouseLocation = Control.MousePosition;
 
-            // Keyboard events
-            this.KeyPress += (s, e) => CloseScreensaver();
-            this.KeyDown += (s, e) => CloseScreensaver();
+            // Keyboard events - don't close during initialization
+            this.KeyPress += (s, e) => { if (!isInitializing) CloseScreensaver(); };
+            this.KeyDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
 
             // Mouse events
             this.MouseMove += OnMouseMove;
-            this.MouseDown += (s, e) => CloseScreensaver();
-            this.MouseClick += (s, e) => CloseScreensaver();
+            this.MouseDown += (s, e) => { if (!isInitializing) CloseScreensaver(); };
+            this.MouseClick += (s, e) => { if (!isInitializing) CloseScreensaver(); };
 
-            // Form events
-            this.Deactivate += (s, e) => CloseScreensaver();
+            // Form events - don't close during initialization
+            this.Deactivate += (s, e) => { if (!isInitializing) CloseScreensaver(); };
             this.Load += ScreensaverForm_Load;
         }
 
@@ -121,6 +153,9 @@ namespace ApsScreensaver
 
         private void OnMouseMove(object sender, MouseEventArgs e)
         {
+            // Don't close during initialization
+            if (isInitializing) return;
+
             // Only close if mouse moved significantly
             if (!mouseLocation.IsEmpty)
             {

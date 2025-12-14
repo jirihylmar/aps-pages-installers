@@ -2,9 +2,8 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>ApsScreensaver</AssemblyName>
     <RootNamespace>ApsScreensaver</RootNamespace>
     <Platforms>x64</Platforms>

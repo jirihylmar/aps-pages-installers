@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace ApsScreensaver
@@ -53,21 +54,52 @@ namespace ApsScreensaver
 
         static void ShowScreensaver()
         {
-            // Show screensaver on all screens
-            foreach (Screen screen in Screen.AllScreens)
-            {
-                ScreensaverForm screensaver = new ScreensaverForm(screen.Bounds);
-                screensaver.Show();
-            }
-            Application.Run();
+            // Show screensaver on primary screen only (multi-monitor causes WebView2 conflicts)
+            Screen primaryScreen = Screen.PrimaryScreen;
+
+            // Create a single form that spans all screens
+            Rectangle bounds = new Rectangle(
+                SystemInformation.VirtualScreen.Left,
+                SystemInformation.VirtualScreen.Top,
+                SystemInformation.VirtualScreen.Width,
+                SystemInformation.VirtualScreen.Height
+            );
+
+            ScreensaverForm screensaver = new ScreensaverForm(bounds);
+            Application.Run(screensaver);
         }
 
         static void ShowPreview(string previewHandle)
         {
             // Preview mode (in display settings)
-            // For simplicity, we'll skip preview implementation
-            // Most modern screensavers don't implement preview
-            Application.Exit();
+            // Show a simple message or blank form for preview
+            try
+            {
+                // Create a small preview form
+                Form previewForm = new Form
+                {
+                    FormBorderStyle = FormBorderStyle.None,
+                    BackColor = System.Drawing.Color.Black,
+                    Size = new System.Drawing.Size(200, 150)
+                };
+
+                Label label = new Label
+                {
+                    Text = "APS Screensaver\nPreview",
+                    ForeColor = System.Drawing.Color.White,
+                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                    Dock = DockStyle.Fill,
+                    Font = new System.Drawing.Font("Segoe UI", 10)
+                };
+
+                previewForm.Controls.Add(label);
+                Application.Run(previewForm);
+            }
+            catch
+            {
+                // If preview fails, just exit
+                Application.Exit();
+            }
         }
 
         static void ShowSettings()
