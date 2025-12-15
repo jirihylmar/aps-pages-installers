@@ -42,10 +42,14 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
    > **Note:** Windows SmartScreen may show "Unknown publisher" warning because the app is not code-signed. This is normal for open-source software. Click "More info" → "Run anyway" to proceed.
 
 4. **Install the screensaver**:
-   - Right-click on `ApsScreensaver.scr`
-   - Select **"Install"**
-   - Windows will copy it to `C:\Windows\System32\`
-   - **After installation, you can delete the downloaded files**
+   - **Option A - Quick install** (runs from current location):
+     - Right-click on `ApsScreensaver.scr` → Select **"Install"**
+     - ⚠️ Keep the file where you extracted it (do NOT delete it)
+
+   - **Option B - System install** (recommended, requires admin):
+     - Copy `ApsScreensaver.scr` to `C:\Windows\System32\`
+     - Right-click the copied file → Select **"Install"**
+     - You can now delete the downloaded files
 
 5. **Configure the screensaver**:
    - Right-click on desktop → "Personalize"
@@ -76,9 +80,11 @@ A Windows screensaver that displays APS Pages content using Microsoft Edge WebVi
 
 1. Open screensaver settings
 2. Change to a different screensaver (e.g., "Blank")
-3. Delete `C:\Windows\System32\ApsScreensaver.scr` (requires administrator access)
+3. Delete the `ApsScreensaver.scr` file:
+   - If you used **Option A**: Delete it from where you extracted it
+   - If you used **Option B**: Delete `C:\Windows\System32\ApsScreensaver.scr` (requires admin)
 
-The screensaver stores its URL setting in the Windows Registry at `HKEY_CURRENT_USER\Software\APS\Screensaver`. This is automatically cleaned up if you use the `uninstall.ps1` script.
+The screensaver stores its URL setting in the Windows Registry at `HKEY_CURRENT_USER\Software\APS\Screensaver`. You can remove this manually or use the `uninstall.ps1` script.
 
 ### Troubleshooting
 
