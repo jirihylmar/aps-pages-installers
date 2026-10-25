@@ -36,3 +36,45 @@ Desktop.ini
 # Python (distributed skills)
 __pycache__/
 *.py[cod]
+
+# >>> syndicate artifact-guard baseline (seeded once by /distribute-defaults / /setup) >>>
+# SEED-ONCE: the distribution engine appends this block only if the marker is absent; it does
+# NOT refresh an existing block. To change the baseline fleet-wide, edit central AND update each
+# project's block by hand (or delete the block so the next distribution re-seeds it).
+# Kept in sync with the patterns in .claude/hooks/pre-commit (ARTIFACT_EXT/DIR/EGG/BIN).
+# NOTE: .gitignore does NOT untrack files already in git. An artifact already tracked
+# must be removed with `git rm --cached <path>` (these patterns only stop FUTURE staging).
+# The pre-commit hook is the mechanical backstop; intentional exceptions go in
+# .claude/hooks/artifact-guard.allow (and an un-ignore line below if needed).
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.tar.bz2
+*.jar
+*.war
+*.whl
+*.egg
+lambda-deployment.zip
+lambda-function.zip
+.terraform/
+*.tfstate
+*.tfstate.backup
+target/
+dist/
+build/
+cdk.out/
+__pycache__/
+node_modules/
+.pytest_cache/
+.venv/
+venv/
+coverage/
+*.egg-info/
+*.pyc
+*.pyo
+*.class
+*.o
+*.so
+*.dylib
+# <<< syndicate artifact-guard baseline <<<
