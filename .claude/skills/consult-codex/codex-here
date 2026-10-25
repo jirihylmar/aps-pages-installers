@@ -1,0 +1,393 @@
+#!/usr/bin/env python3
+"""codex-here — launch Codex in THIS project with the AWS reach this project's Claude has.
+
+Tasks 30.2 / 30.3.  Usage:
+
+    codex-here [--project DIR] [--dry-run] [--] <codex arguments...>
+
+    codex-here                                  # interactive, this project
+    codex-here exec 'review the current task'   # non-interactive
+    codex-here exec resume <thread> 'round 2'   # the -c flags are re-passed, which resume needs
+
+What it does, in order:
+  1. Reads ~/.claude.json  ->  projects["<abs project>"].mcpServers
+     Candidates are the entries that LAUNCH the awslabs aws-api MCP server: a container
+     named by content address (the shape policy section 9 mandates), or the legacy pipx
+     console script / `uvx` package it replaced.
+     By what it runs, never by name: server names encode no account (rule 4 of the estate).
+  2. Reads <project>/progress.json  ->  context_hints.aws_account (the declared primary) and
+     context_hints.aws_region. A declared region is the region, on every path. Without one
+     (a declared value that is not a region name counts as none, and is named as ignored),
+     profile-scan takes the profile's configured region, else the literal eu-central-1; a
+     bound server keeps the binding's AWS_REGION, else the region is reported unset.
+     The banner names the source: declared, profile, fallback, binding or unset.
+  3. Binds exactly one account-bound candidate, or refuses:
+        ACCOUNT-AMBIGUOUS  more than one candidate and no way to pick   (exit 3)
+        profile-scan       an account is declared but Claude has no account-bound server for it
+                           (including a sole central server with no AWS_PROFILE; the box:
+                           its AWS reach is a user-level proxy whose --read-only drops every
+                           executor tool) -> scan this host's AWS profiles for the one whose
+                           sts identity IS the declared account, then reuse the sole configured
+                           candidate's command with that profile, else mint the pinned container
+                           by content address, else refuse ACCOUNT-NOT-BOUND. Never a venv
+                           launcher (pinning policy section 9). Bound by proof, re-derived
+                           every run.
+        ACCOUNT-NOT-BOUND  declared, and no profile on this host resolves to it (exit 3)
+        no-infra           nothing declared, nothing configured -> launch WITHOUT AWS, say so
+  4. Injects the bound server per invocation with -c mcp_servers.<name>.…  — every env
+     key copied (the server does not inherit the parent's environment) plus
+     READ_OPERATIONS_ONLY=true.  Nothing is written to any config file.
+  5. Strips the SHELL of credentials (task 30.3): every AWS_* variable unset,
+     AWS_EC2_METADATA_DISABLED=true, config/credentials paths pointed at /nonexistent.
+     The injected server is unaffected: Codex starts MCP servers with a fresh minimal
+     environment (HOME, PATH, … + the injected keys), so it still reads ~/.aws via HOME.
+     PYTHONDONTWRITEBYTECODE=1 and PYTEST_ADDOPTS="-p no:cacheprovider" are set too, so a
+     test run by the reviewer leaves no cache in the clone for the posture check to see.
+  6. execs codex.
+
+Nothing here proves the binding is CORRECT — that is the caller's sts check
+(see scripts/test-codex-here.sh).  This script only makes the binding explicit and visible.
+"""
+import json, os, re, shlex, sys
+
+AWSLABS = "awslabs.aws-api-mcp-server"
+
+# Pinned per docs/mcp-server-pinning-policy.md in syndicate-playbooks-examples. Read that file
+# before changing these: the deciding dependency is fastmcp, NOT mcp. awslabs.aws-api-mcp-server
+# declares fastmcp>=3.4.3 and mcp>=1.23.0, both unbounded, and fastmcp is what selects the mcp
+# major (fastmcp-slim 3.4.7 requires mcp<2.0; 4.0.1 requires mcp>=2.0.0). Constraining mcp alone
+# does not pin mcp — it only makes the resolver backtrack fastmcp until nothing satisfies, and
+# then the launch fails outright.
+#
+# Measured on the box, cold cache, 2026-09-02:
+#   unconstrained          -> fastmcp 4.0.1 + mcp 2.1.1 -> ImportError: cannot import name 'McpError'
+#   these three exact pins -> fastmcp 3.4.7 + mcp 1.29.1 -> imports cleanly
+AWSLABS_VERSION = "1.5.4"
+AWSLABS_PINS = ["--with", "fastmcp==3.4.7", "--with", "mcp==1.29.1"]
+
+# SUPERSEDED 2026-09-07. The two constants above describe a `uvx` launcher and are kept only
+# so an older recorded binding is still recognisable. This estate no longer launches any MCP
+# server from a venv — pipx, uvx or otherwise — and codex-here must not mint one.
+#
+# Why (docs/mcp-server-pinning-policy.md, standing decisions 2026-09-06/07): a venv-backed
+# server is a long-lived process whose memory can diverge from its pinned bytes. The
+# workstation's served 40 minutes of working calls and then failed every one for the life of
+# the process, with a perfect install on disk. Pinning cannot reach that; a container that
+# starts clean per invocation can.
+AWSLABS_IMAGE = "syndicate/aws-api-mcp-server:pinned"
+AWSLABS_IMAGE_REPO = "syndicate/aws-api-mcp-server"
+IMAGE_REF = re.compile(r"^(?:sha256:[0-9a-f]{64}|%s(?::[A-Za-z0-9._-]+)?)$" % re.escape(AWSLABS_IMAGE_REPO))
+
+
+def image_id(tag):
+    """Resolve an image tag to its content address, or None if it is not on this host.
+
+    The tag is a stable name; the id is what gets written into the binding, so the
+    declaration names bytes rather than a label anyone can re-point."""
+    import subprocess
+    try:
+        r = subprocess.run(["docker", "image", "inspect", tag, "--format", "{{.Id}}"],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = r.stdout.strip()
+    return out if r.returncode == 0 and out.startswith("sha256:") else None
+
+
+_IMAGE_IS_AWSLABS = {}
+
+
+def image_is_awslabs(ref):
+    """Does this image reference run the awslabs aws-api MCP server? Asked of DOCKER.
+
+    A container binding names BYTES (`sha256:<64hex>`) or the estate tag, and the ledger
+    that records every id this repo has produced — config/mcp-image/known-ids.json — lives
+    in syndicate-playbooks-examples, which is LOCAL-ONLY and is never present in a project.
+    So the only thing on hand that knows what an id is, is the daemon holding it: its repo
+    tag answers for the generation currently tagged, and its entrypoint answers for every
+    older generation still on the host after the tag moved on.
+
+    Cached per reference: a consult with several candidates would otherwise pay the timeout
+    once per arg per candidate."""
+    if ref in _IMAGE_IS_AWSLABS:
+        return _IMAGE_IS_AWSLABS[ref]
+    import subprocess
+    verdict = False
+    try:
+        r = subprocess.run(["docker", "image", "inspect", ref, "--format",
+                            "{{json .RepoTags}}|{{json .Config.Entrypoint}}"],
+                           capture_output=True, text=True, timeout=20)
+        if r.returncode == 0:
+            tags, _, entry = r.stdout.strip().partition("|")
+            verdict = (AWSLABS_IMAGE_REPO in tags) or (AWSLABS in entry)
+    except (OSError, subprocess.SubprocessError):
+        verdict = False
+    _IMAGE_IS_AWSLABS[ref] = verdict
+    return verdict
+
+
+def container_server(home=None):
+    """The one sanctioned shape for an AWS MCP server in this estate."""
+    img = image_id(AWSLABS_IMAGE)
+    if not img:
+        return None
+    h = home or os.path.expanduser("~")
+    return {"command": "docker",
+            "args": ["run", "-i", "--rm",
+                     "-v", f"{h}/.aws:/aws:ro",
+                     "-e", "HOME=/home/mcp",
+                     "-e", "AWS_CONFIG_FILE=/aws/config",
+                     "-e", "AWS_SHARED_CREDENTIALS_FILE=/aws/credentials",
+                     "-e", "AWS_PROFILE", "-e", "AWS_REGION", "-e", "READ_OPERATIONS_ONLY",
+                     "-e", "AWS_API_MCP_WORKING_DIR=/home/mcp",
+                     # The vendor's end-of-development notice, off. The image sets this ENV
+                     # itself (config/mcp-image/aws-api-mcp-server/Dockerfile, with a build
+                     # assertion); it is repeated here so a binding minted against an older
+                     # image is quiet too. The VALUE IS WRITTEN OUT and must stay that way:
+                     # a bare `-e VAR` whose value is unset in the launching process sets it
+                     # to the EMPTY STRING in the container and OVERRIDES the image ENV —
+                     # measured 2026-09-20. The three bare `-e` above are legitimate because
+                     # this launcher does set them, from the bound server's env.
+                     "-e", "AWS_API_MCP_SUPPRESS_DEPRECATION_WARNING=true",
+                     "--tmpfs", "/home/mcp:rw,size=64m",
+                     img]}
+
+
+def die(code, msg):
+    print(f"codex-here: {msg}", file=sys.stderr)
+    sys.exit(3 if code else 1)
+
+
+def executable(name):
+    """Resolve a host tool without assuming a login shell populated ~/.local/bin."""
+    import shutil
+    found = shutil.which(name)
+    if found:
+        return found
+    user_bin = os.path.expanduser(os.path.join("~/.local/bin", name))
+    return user_bin if os.path.isfile(user_bin) and os.access(user_bin, os.X_OK) else None
+
+
+def main(argv):
+    project = os.getcwd()
+    bind_from = None      # --bind-from <real checkout>: run in a CLONE, bind from the real project's entry
+    dry = False
+    args = list(argv)
+    while args and args[0].startswith("--"):
+        a = args.pop(0)
+        if a == "--project":
+            project = os.path.abspath(args.pop(0))
+        elif a == "--bind-from":
+            bind_from = os.path.realpath(args.pop(0))
+        elif a == "--dry-run":
+            dry = True
+        elif a == "--":
+            break
+        else:
+            die(1, f"unknown option {a}")
+    project = os.path.realpath(project)
+    bind_from = bind_from or project
+
+    # 1. Claude's own MCP map for this project (keyed by the REAL checkout path)
+    try:
+        cj = json.load(open(os.path.expanduser("~/.claude.json")))
+    except FileNotFoundError:
+        cj = {}
+    servers = ((cj.get("projects") or {}).get(bind_from) or {}).get("mcpServers") or {}
+    def is_awslabs(s):  # a container by content address; or the legacy pipx / uvx shapes
+        # Scan EVERY arg, not args[0]. Once a host pins per docs/mcp-server-pinning-policy.md the
+        # package stops being first: `uvx --with fastmcp==3.4.7 --with mcp==1.29.1 <pkg>==1.5.4`.
+        # Matching on args[0] would silently stop recognising exactly the configs we now prescribe,
+        # and codex-here would fall through to profile-scan with no account binding.
+        #
+        # That warning then came true in the other direction and went unnoticed for a fortnight.
+        # The 2026-09-06 migration moved every binding in the estate to `"command": "docker"`
+        # (policy § 9), and this function knew only the two venv shapes § 9 abolished. Measured
+        # 2026-09-20 by replaying it over ~/.claude.json: it recognised 0 of 22 live bindings.
+        # A consult then either fell to profile-scan — discarding the project's curated binding
+        # and paying up to 25 s per profile — or, for a project with no declared aws_account,
+        # launched the reviewer with no AWS server at all. The estate's own launcher had stopped
+        # recognising the only shape the estate is allowed to have.
+        cmd = os.path.basename(str(s.get("command", ""))); args = s.get("args") or []
+        if cmd == AWSLABS:
+            return True
+        if cmd in ("uvx", "uv"):
+            return any(re.split(r"[@=<>!]", str(a), 1)[0] == AWSLABS for a in args)
+        if cmd == "docker":
+            # By CONTENT, in two steps. The estate tag is a pure-config answer and costs
+            # nothing; an id is bytes and only the daemon can say what they are, so it is asked
+            # about the image references only — never about every argument.
+            refs = [str(a) for a in args if IMAGE_REF.match(str(a))]
+            if any(a.startswith(AWSLABS_IMAGE_REPO) for a in refs):
+                return True
+            return any(image_is_awslabs(a) for a in refs)
+        return False
+    cands = {n: s for n, s in servers.items() if is_awslabs(s)}
+
+    # 2. the declared primary account, and the declared region.
+    # The region is a project identity, not a host setting (charter § 9): until 2026-10-22 this
+    # read only the account, so the reviewer — which checks claims against live AWS — queried the
+    # HOST's region, and a healthy regional resource came back "not found" (EP-0052).
+    declared, declared_region = None, None
+    pj = os.path.join(bind_from, "progress.json")
+    if os.path.exists(pj):
+        try:
+            hints = json.load(open(pj)).get("context_hints") or {}
+            declared = hints.get("aws_account")
+            declared_region = hints.get("aws_region")
+        except Exception as e:  # unreadable progress.json is the project's problem, not ours to hide
+            print(f"codex-here: progress.json unreadable ({e}); treating as no declared account", file=sys.stderr)
+    # A declared region is injected as written, so it must BE a region name. The templates seed
+    # placeholders ("{if applicable}", "{from environment}"): a project that filled in its account
+    # and not its region would send every reviewer call to a region that does not exist, and a
+    # quote in the value would break Codex's -c parse. Such a value counts as not declared, and the
+    # banner says it was ignored — visible, never a quiet substitute.
+    region_note = ""
+    if declared_region in (None, ""):
+        declared_region = None
+    elif re.fullmatch(r"[a-z]{2,4}(-[a-z]+)+-[0-9]+", str(declared_region)):
+        declared_region = str(declared_region)
+    else:
+        region_note = (f"declared aws_region {json.dumps(str(declared_region))}"
+                       " is not a region name, ignored")
+        declared_region = None
+    # Without a usable declaration: a found region names where it came from (plus the note), and
+    # the last resort says whether nothing was declared or the declaration was ignored.
+    def found(src): return f"{src}; {region_note}" if region_note else src
+    undeclared = region_note or "aws_region not declared"
+
+    # 3. bind exactly one, or refuse, or no-infra
+    flags = ['-c', 'project_doc_fallback_filenames=["CLAUDE.md"]', '-c', 'project_doc_max_bytes=262144']
+    mode, bound = "no-infra", None
+    region_src = None  # set by profile-scan; a bound path decides it when the env is injected
+    # A sole awslabs process is not necessarily an account binding. An awslabs candidate whose
+    # environment names no profile (the central server) is not selected directly when an account
+    # is declared: it is routed through the STS-proved profile scan below, which reuses its
+    # command with the proved profile. Selecting it directly used to bypass that scan and made
+    # consult preflight receive `none`. A candidate counts as bound only when its process
+    # environment names a profile. The caller still proves that profile's live account with STS,
+    # so this is routing—not trust in a nickname.
+    def has_profile_binding(server):
+        env = server.get("env") or {}
+        return bool(env.get("AWS_PROFILE") or env.get("AWS_DEFAULT_PROFILE"))
+
+    bound_cands = {name: server for name, server in cands.items() if has_profile_binding(server)}
+    if declared and len(bound_cands) == 1:
+        # An unbound central candidate may coexist with the one project-bound process. It is not
+        # an ambiguity: only one candidate claims a profile, and STS will verify that claim.
+        bound = next(iter(bound_cands.items()))
+        mode = "aws-read-only"
+    elif declared and len(bound_cands) > 1:
+        die(3, f"ACCOUNT-AMBIGUOUS — {len(bound_cands)} profile-bound awslabs servers for {project}: "
+               f"{', '.join(bound_cands)}; declare ONE primary or pass --project to a narrower checkout")
+    elif declared:
+        # No per-project server in Claude's map (the box has none: its AWS reach is a user-level proxy whose
+        # --read-only drops every executor tool — measured 2026-08-25, task 30.9). Bind by PROOF instead:
+        # scan this host's AWS profiles for the one whose sts identity IS the declared account, then reuse
+        # the sole configured candidate's command with that profile, else mint the pinned container by
+        # content address, else refuse ACCOUNT-NOT-BOUND — never a venv launcher (policy section 9).
+        # No install, no host setting written; the binding is derived from the declared account every run.
+        import subprocess
+        aws_cli = executable("aws")
+        if not aws_cli:
+            die(3, f"ACCOUNT-NOT-BOUND — aws_account {declared} declared, no awslabs server for {project}, and no `aws` CLI to scan profiles")
+        profiles = subprocess.run([aws_cli, "configure", "list-profiles"], capture_output=True, text=True).stdout.split()
+        match = None
+        for prof in profiles:
+            r = subprocess.run([aws_cli, "sts", "get-caller-identity", "--profile", prof, "--query", "Account", "--output", "text"],
+                               capture_output=True, text=True, timeout=25)
+            if r.returncode == 0 and r.stdout.strip() == str(declared):
+                match = prof; break
+        if not match:
+            die(3, f"ACCOUNT-NOT-BOUND — aws_account {declared} declared; none of {len(profiles)} profiles on this host resolves to it")
+        # The declared region first. Without one, the profile's configured region is still
+        # ambient, so the banner names it as the profile's; the literal is the last resort and
+        # says whether nothing was declared or the declared value was ignored.
+        if declared_region:
+            region, region_src = declared_region, "declared"
+        else:
+            region = subprocess.run([aws_cli, "configure", "get", "region", "--profile", match],
+                                    capture_output=True, text=True).stdout.strip()
+            region_src = found("profile")
+            if not region:
+                region, region_src = "eu-central-1", f"fallback, {undeclared}"
+        if len(cands) == 1:
+            # Reuse the configured central command. On the box it is runnable by Codex even when
+            # neither its absolute binary nor uvx is exposed on a non-login shell PATH. Copy it:
+            # adding the proved profile is per invocation and must not mutate Claude's config.
+            server = dict(next(iter(cands.values())))
+            server["env"] = dict(server.get("env") or {})
+        elif container_server():
+            # The ONLY launcher this estate mints. The pipx-console-binary and `uvx` fallbacks
+            # that stood here until 2026-09-07 both created a venv-backed server; see the
+            # AWSLABS_IMAGE note above for why that shape is prohibited.
+            server = container_server()
+        else:
+            die(3, f"ACCOUNT-NOT-BOUND — profile {match} matches {declared}, but the image "
+                   f"{AWSLABS_IMAGE} is not on this host. Build it from "
+                   f"config/mcp-image/aws-api-mcp-server/ in syndicate-playbooks-examples, or "
+                   f"`docker load` it from a host that has it. This estate does not launch MCP "
+                   f"servers from venvs — see docs/mcp-server-pinning-policy.md.")
+        server.setdefault("env", {})
+        server["env"].update({"AWS_PROFILE": match, "AWS_REGION": region})
+        bound = (f"aws-scan-{str(declared)[-3:]}", server)
+        mode = "aws-read-only (profile-scan)"
+    elif len(cands) == 1:
+        bound = next(iter(cands.items()))
+        mode = "aws-read-only"
+    elif len(cands) > 1:
+        die(3, f"ACCOUNT-AMBIGUOUS — {len(cands)} awslabs servers for {project}: "
+               f"{', '.join(cands)}; declare ONE primary or pass --project to a narrower checkout")
+
+    if bound:
+        name, s = bound
+        env = dict(s.get("env") or {})  # a copy: the dict read from ~/.claude.json is never changed
+        if region_src is None:
+            # A bound path: the binding came from Claude's map and carries the host's region, if
+            # any. A declared region replaces it in this copy; otherwise the binding's is kept.
+            if declared_region:
+                env["AWS_REGION"], region_src = declared_region, "declared"
+            elif env.get("AWS_REGION"):
+                region_src = found("binding")
+            else:
+                region_src = f"{undeclared}, none in the binding"
+        env["READ_OPERATIONS_ONLY"] = "true"
+        toml_env = "{" + ",".join(f'{k}="{v}"' for k, v in env.items()) + "}"
+        toml_args = "[" + ",".join(json.dumps(a) for a in (s.get("args") or [])) + "]"
+        flags += ['-c', f'mcp_servers.{name}.command={json.dumps(s["command"])}',
+                  '-c', f'mcp_servers.{name}.args={toml_args}',
+                  '-c', f'mcp_servers.{name}.env={toml_env}']
+
+    # 5. strip the shell of credentials; the injected server gets its own environment.
+    # The last two keys keep the reviewer's own test runs from writing: the posture check hashes
+    # every path of the clone, caches included, so the __pycache__/ and .pytest_cache/ that a test
+    # run leaves read as a posture breach and downgrade the close (models-trainer, cycle
+    # 20260910-091828-f0f92b1, closed disputed after the reviewer ran 76 tests to confirm a fix).
+    penv = {k: v for k, v in os.environ.items() if not k.startswith("AWS_")}
+    penv.update({"AWS_EC2_METADATA_DISABLED": "true",
+                 "AWS_CONFIG_FILE": "/nonexistent",
+                 "AWS_SHARED_CREDENTIALS_FILE": "/nonexistent",
+                 "PYTHONDONTWRITEBYTECODE": "1",
+                 "PYTEST_ADDOPTS": "-p no:cacheprovider"})
+
+    # codex accepts -c before the subcommand (global option); resume needs them re-passed each call
+    codex_bin = executable("codex")
+    if not codex_bin:
+        die(3, "HOST-NOT-PREPARED — Codex executable not found on PATH or in ~/.local/bin")
+    cmd = [codex_bin] + flags + args
+    # The region and where it came from are printed, so a host-derived region is visible.
+    banner = (f"codex-here: {os.path.basename(project)} · mode={mode}"
+              + (f" · server={bound[0]} · profile={bound[1].get('env', {}).get('AWS_PROFILE')}"
+                 f" · declared={declared or '-'}"
+                 f" · region={env.get('AWS_REGION') or 'unset'} ({region_src})"
+                 if bound else " · no AWS server, none declared"))
+    print(banner, file=sys.stderr)
+    if dry:
+        print(" ".join(shlex.quote(c) for c in cmd))
+        return 0
+    os.chdir(project)
+    os.execvpe(codex_bin, cmd, penv)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

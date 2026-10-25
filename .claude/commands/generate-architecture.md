@@ -1,0 +1,293 @@
+---
+description: Generate architecture diagram from Python diagrams script (project)
+allowed-tools:
+  - Read
+  - Bash
+  - Write
+  - Edit
+  - AskUserQuestion
+---
+
+<!--
+  Centrally distributed by /distribute-defaults from syndicate-playbooks-examples.
+  Project-specific additions go in .claude/local-overlays/<this-filename> as
+  splice fragments (see /distribute-defaults for the overlay format).
+  Direct edits to this file will be flagged on the next distribution.
+-->
+
+# Generate Architecture Diagram
+
+Generate a visual architecture diagram using Python diagrams library and update README.md.
+
+---
+
+## Prerequisites
+
+The generator needs the Python package `diagrams` and Graphviz (`dot`). Work through these in
+order:
+
+1. **Use what the project provides.** If the project has its own way to render the diagram, such
+   as a `make architecture` target, a container or a script named in its `CLAUDE.md`, use it, and
+   use it again in step 4 instead of running `generate.py` directly.
+2. **Check what is already there:** `python3 -c 'import diagrams'` and `command -v dot`. If both
+   succeed, install nothing.
+3. **Install only where the host's rules allow it.** On a shared or administered host, never
+   install packages. That means a member host, a machine whose administrator is someone else, or
+   any project whose `CLAUDE.md` forbids host changes. Report the missing dependency instead, so
+   the project or the operator can provide it. Installing is fine on a host you administer alone,
+   such as your own workstation, and there these two commands do it:
+
+```bash
+pip3 install --break-system-packages diagrams
+sudo apt-get install -y graphviz
+```
+
+---
+
+## Usage
+
+```
+/generate-architecture [name]
+```
+
+**Arguments:**
+- `name` - Optional. Name for the diagram — used only when CREATING a new `generate.py`
+  (default: project name from progress.json). An existing `generate.py` hardcodes its own
+  `OUTPUT_FILE`; that name wins and the argument is ignored.
+  - Output: `docs/architecture/{name}_architecture.png`
+
+---
+
+## Steps
+
+### 1. Determine Diagram Name
+
+If `docs/architecture/generate.py` already exists, read the effective name from its `OUTPUT_FILE`
+(the script's hardcoded name wins — a `name` argument does not change an existing script).
+Otherwise, for a new script: use the name argument if provided, else:
+- Read `progress.json` for project name
+- Fall back to directory name
+
+### 2. Verify Directory Structure
+
+Check `docs/architecture/` exists:
+```bash
+ls -la docs/architecture/
+```
+
+If missing, create it:
+```bash
+mkdir -p docs/architecture
+```
+
+### 3. Check for generate.py
+
+If `docs/architecture/generate.py` does NOT exist:
+
+```
+## Architecture Script Missing
+
+No generate.py found at docs/architecture/generate.py
+
+Would you like me to create one from what this project has deployed?
+```
+
+Use AskUserQuestion. If yes, establish the architecture in this source order, stopping at the
+first that answers:
+1. `resource_inventory` in progress.json, and the completed tasks that created the resources
+2. the project's own infrastructure-as-code — CDK, CloudFormation or Terraform under its declared path
+3. a live account inventory, where the account is reachable (`/check-aws` resolves the handle)
+4. `IMPLEMENTATION_PLAN.md` last, and only for the shape that was *originally intended*
+
+The diagram describes what exists, which is why the first three outrank the fourth. The
+specification is the Phase-0 origin record, frozen at approval: a diagram drawn from it shows a
+system that was planned, not one that is running, and nothing in the picture says which of the two
+a reader is looking at. The generated `docs/architecture/README.md` names the source actually used
+(step 7).
+
+Then:
+- Create a starter `generate.py` with the components that source gave
+- Include common AWS icons and cluster patterns
+
+### 4. Run Generator
+
+```bash
+python3 docs/architecture/generate.py
+```
+
+Expected output: `docs/architecture/{name}_architecture.png`
+
+### 5. Verify Output
+
+```bash
+ls -la docs/architecture/*.png
+```
+
+Confirm the PNG was created.
+
+### 6. Update README.md
+
+Check if README.md already has architecture image reference.
+
+**If architecture section missing**, add near the top (after title/overview):
+
+```markdown
+## Architecture
+
+![{Project Name} Architecture](docs/architecture/{name}_architecture.png)
+
+See [Architecture Documentation](docs/architecture/README.md) for details.
+```
+
+**If architecture section exists**, verify image path is correct.
+
+### 7. Create/Update docs/architecture/README.md
+
+If `docs/architecture/README.md` doesn't exist, create it with:
+
+```markdown
+# Architecture Documentation
+
+## Diagram
+
+![{Project Name} Architecture]({name}_architecture.png)
+
+## Overview
+
+[Brief summary of the architecture shown]
+
+## Source
+
+[Which source this diagram was drawn from — `resource_inventory` and the completed tasks, the
+project's IaC, a live account inventory, or `IMPLEMENTATION_PLAN.md` as the originally intended
+shape — and the date it was drawn. A diagram drawn from the specification shows what was planned,
+not what runs.]
+
+## Components
+
+[List key components shown in diagram]
+
+## Regenerating
+
+To regenerate the diagram:
+```bash
+python3 docs/architecture/generate.py
+```
+
+Requirements: the Python package `diagrams` and Graphviz (`dot`). Install them only where the
+host's rules allow it (`/generate-architecture` § Prerequisites).
+```
+
+If it already exists, leave its prose alone and refresh the **Source** section to name the source
+this run actually drew from, with today's date. A diagram carries no evidence of its own
+provenance: without that line a picture drawn from the Phase-0 specification and a picture drawn
+from the live account are the same PNG to every reader who opens it.
+
+---
+
+## Output
+
+```
+## Architecture Generated
+
+### Diagram
+- File: docs/architecture/{name}_architecture.png
+- Size: [file size]
+
+### README Updates
+- Root README.md: [updated/already current]
+- docs/architecture/README.md: [created/updated]
+
+### Preview
+[If terminal supports it, mention the file can be viewed]
+
+To view: open docs/architecture/{name}_architecture.png
+```
+
+---
+
+## generate.py Template
+
+When creating a new generate.py, use this structure:
+
+```python
+#!/usr/bin/env python3
+"""
+{{PROJECT_NAME}} - Architecture Diagram
+
+Generates AWS architecture diagram using Python diagrams library.
+
+Usage:
+    python3 docs/architecture/generate.py
+
+Requirements:
+    the Python package `diagrams` and Graphviz (`dot`). Install them only where the host's rules
+    allow it (/generate-architecture § Prerequisites).
+
+Output:
+    docs/architecture/{{name}}_architecture.png
+"""
+
+from pathlib import Path
+
+from diagrams import Cluster, Diagram, Edge
+from diagrams.aws.compute import Lambda, ECS
+from diagrams.aws.database import Dynamodb
+from diagrams.aws.integration import SQS, SNS
+from diagrams.aws.network import APIGateway, CloudFront
+from diagrams.aws.storage import S3
+from diagrams.aws.security import IAM, SecretsManager
+from diagrams.onprem.client import User
+
+# Output path relative to script location
+SCRIPT_DIR = Path(__file__).parent
+OUTPUT_FILE = SCRIPT_DIR / "{{name}}_architecture"
+
+# Diagram configuration
+graph_attr = {
+    "fontsize": "14",
+    "bgcolor": "white",
+    "pad": "0.5",
+    "splines": "ortho",
+    "nodesep": "0.8",
+    "ranksep": "1.0",
+}
+
+node_attr = {
+    "fontsize": "10",
+}
+
+edge_attr = {
+    "fontsize": "8",
+}
+
+with Diagram(
+    "{{PROJECT_NAME}}",
+    filename=str(OUTPUT_FILE),
+    show=False,
+    direction="TB",
+    graph_attr=graph_attr,
+    node_attr=node_attr,
+    edge_attr=edge_attr,
+):
+    # TODO: Define your architecture components here
+    user = User("Client")
+
+    with Cluster("AWS Account ({{AWS_ACCOUNT_ID}}, {{AWS_REGION}})"):
+        # Add your components
+        pass
+
+if __name__ == "__main__":
+    print(f"Diagram generated: {OUTPUT_FILE}.png")
+```
+
+---
+
+## Notes
+
+- The `diagrams` library uses Graphviz for rendering
+- Common AWS icons: Lambda, ECS, S3, DynamoDB, SQS, SNS, APIGateway
+- Use `Cluster()` to group related resources
+- Use `Edge()` for labeled connections
+- Direction: "TB" (top-bottom), "LR" (left-right)
+- Script should be idempotent (can run multiple times)

@@ -1,0 +1,46 @@
+{
+  "version": "2.0",
+  "project": "aps-pages-installers",
+  "description": "A Windows screensaver that displays APS Pages content using Microsoft Edge WebView2.",
+  "description_reviewed": "2026-10-25T15:14:46Z",
+  "created_at": "2026-10-25",
+  "last_updated": "2026-10-25T15:14:46Z",
+  "last_session_summary": "Workflow injected into existing project",
+  "context_hints": {
+    "project_prefix": "aps-pages-installers"
+  },
+  "phases": {
+    "phase_1_current": {
+      "name": "Maintenance",
+      "status": "in_progress",
+      "started_at": "2026-10-25",
+      "authored_by": "Claude",
+      "assigned_to": "Claude",
+      "tasks": [
+        {
+          "id": "1.1",
+          "name": "Define the next maintenance change with the operator (/add-work)",
+          "status": "pending",
+          "size": "small",
+          "authored_by": "Claude",
+          "assigned_to": "Claude",
+          "notes": "Placeholder: the operator named no work in progress when the workflow was injected."
+        }
+      ]
+    }
+  },
+  "current_task": "1.1",
+  "current_phase": "phase_1_current",
+  "git_repos": {
+    "aps-pages-installers": {
+      "local": ".",
+      "remote": "https://github.com/jirihylmar/aps-pages-installers.git",
+      "status": "clean"
+    }
+  },
+  "relations": {
+    "version": 1,
+    "members": []
+  },
+  "blockers": []
+}

@@ -29,3 +29,10 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Claude Code local settings (operator's, per machine)
+.claude/settings.local.json
+
+# Python (distributed skills)
+__pycache__/
+*.py[cod]
