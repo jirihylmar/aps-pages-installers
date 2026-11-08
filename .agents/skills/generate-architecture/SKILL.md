@@ -8,6 +8,8 @@ description: Draw or redraw a project's architecture as a few readable views (an
 Read `.claude/commands/generate-architecture.md` completely and execute it as the canonical procedure,
 translating Claude tool names to available Codex capabilities. This project's architecture script
 (`generate.py` beside its views) is edited when it was built from the command's template; any other is rewritten from that template, and what it
-drew becomes material for the plan. Never draw or edit an image by hand. Verify the actual images
+drew becomes material for the plan. What that script reads besides its images, and what it writes
+that a test or a document names, the rewrite keeps, and the project's own tests run before the
+commit. Never draw or edit an image by hand. Verify the actual images
 the script writes with the same readability check the command runs, after staging them, and look
 at each one.

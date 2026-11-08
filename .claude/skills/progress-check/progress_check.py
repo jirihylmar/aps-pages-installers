@@ -1165,7 +1165,7 @@ def show_theme(doc, start):
 
 
 # --- the four checks --------------------------------------------------------
-def check(text, base_text=None, session_theme=None):
+def check(text, base_text=None, session_theme=None, merge_text=None):
     """Return (failures, warnings). Empty failures == safe to commit.
 
     `session_theme` is the committing session's declared theme, resolved by main(); this function
@@ -1375,9 +1375,59 @@ def check(text, base_text=None, session_theme=None):
                             f"task must record who authored the entry and whose job execution is."
                         )
 
+            # 4a'. Every NEW phase says how what it builds runs once it is up and how it is
+            #      rebuilt: PROJECT_CHARTER.md § 8, *Token-heavy development, token-light
+            #      operation*. The operator, 2026-11-08: "enforced for new tasks, new projects
+            #      automatically and for existing by spontaneous evolution". Prospective, as 4a is:
+            #      phases already in history are never back-filled for it. Phases only, because an
+            #      estate notice is a task appended to an existing phase and never creates one, so
+            #      no notice delivery is refused by this.
+            def require_operations(label, obj):
+                if not isinstance(obj, dict):
+                    return
+                value = obj.get("operations")
+                if "operations" in obj and value is not None and not isinstance(value, str):
+                    fail.append(
+                        f"{label} is NEW and its 'operations' is a {type(value).__name__}, not a "
+                        f"string. Write it as one sentence: how what it builds runs without a session, "
+                        f"which command reports its health and how a clean clone rebuilds it, or "
+                        f"'none: <reason>'."
+                    )
+                    return
+                text = value.strip() if isinstance(value, str) else ""
+                if not text:
+                    fail.append(
+                        f"{label} is NEW and has no non-empty 'operations'. Say how what it builds "
+                        f"runs without a session, which command reports its health and how a clean "
+                        f"clone on another host rebuilds it, or 'none: <reason>' when it builds "
+                        f"nothing that keeps running (PROJECT_CHARTER.md § 8, *Token-heavy "
+                        f"development, token-light operation*)."
+                    )
+                elif re.fullmatch(r"(?i)none\W*", text):
+                    # Only a 'none' that gives NO reason: 'none', 'None:', 'none.', 'none -'. A
+                    # sentence that merely begins with the word ('none: docs only', 'None of what
+                    # it builds runs yet; ...') is a statement and passes (review of phase 171).
+                    fail.append(
+                        f"{label} is NEW and its 'operations' says {text!r} with no reason. Write "
+                        f"'none: <reason>', for example 'none: changes documents only', so a reader "
+                        f"can tell a phase that builds nothing that runs from one that skipped the "
+                        f"question."
+                    )
+
+            # While a merge is being concluded, a phase the other parent already carries was
+            # written on that branch, perhaps before the rule existed; this commit only brings it
+            # in, so the operations rule does not judge it (review of phase 171).
+            merged_in = set()
+            if merge_text is not None:
+                try:
+                    merged_in = {pk for pk, _ in iter_phases(parse_strict(merge_text)[0])}
+                except ValueError:
+                    merged_in = set()
             for pk, po in ap.items():
                 if pk not in bp:
                     require_identity(f"phase {pk!r}", po)
+                    if pk not in merged_in:
+                        require_operations(f"phase {pk!r}", po)
 
             # A phase becoming terminal in this candidate commit must acquire a real completion
             # date in the same boundary. Historical terminal phases are not retroactively blocked.
@@ -1429,6 +1479,37 @@ def check(text, base_text=None, session_theme=None):
                 warn.append(
                     f"+{len(dateless) - DRIFT_SHOWN} more task(s) become TERMINAL with no "
                     f"completion date, same rule: {rest}"
+                )
+
+            # A task becoming terminal in this commit should carry the /update-progress Step 7a
+            # record, 'ops:', in verify_result or notes: what it moved toward running without a
+            # session and rebuilding from git, or 'ops: none, nothing this task touched runs'
+            # (PROJECT_CHARTER.md § 8, *Token-heavy development, token-light operation*). A
+            # WARNING, never a refusal, for the dateless rule's arithmetic: a task closes in
+            # nearly every commit. It exists because an unchecked record is skipped: measured
+            # 2026-11-08, about a third of the completions since Step 7's 'docs:' record shipped
+            # carry none. Estate notices are the centre's requests and are left out. Prospective:
+            # a task already terminal in the previous commit is history.
+            # PROMOTION CRITERION: none - this stays a note; the rate is read by the
+            # operations-check skill and the estate baseline, never turned into a gate.
+            unrecorded = []
+            for (pk, tid), task in sorted(at_new.items(), key=lambda kv: (str(kv[0][0]), str(kv[0][1]))):
+                if not isinstance(task, dict) or not is_terminal(task) or task.get("estate_notice") is not None:
+                    continue
+                before_task = bt_new.get((pk, tid))
+                if isinstance(before_task, dict) and is_terminal(before_task):
+                    continue
+                said = " ".join(str(task.get(k) or "") for k in ("verify_result", "notes"))
+                if not re.search(r"(?i)(?<![\w-])ops:", said):
+                    unrecorded.append((pk, tid))
+            if unrecorded:
+                shown = ", ".join(f"{pk}:{tid}" for pk, tid in unrecorded[:DRIFT_SHOWN])
+                more = f" (+{len(unrecorded) - DRIFT_SHOWN} more)" if len(unrecorded) > DRIFT_SHOWN else ""
+                warn.append(
+                    f"task(s) {shown}{more} become TERMINAL in this commit with no 'ops:' record. Not "
+                    f"blocking: end verify_result (or notes) with '; ops: <what this task moved toward "
+                    f"running and rebuilding without a session>' or '; ops: none, nothing this task "
+                    f"touched runs' (/update-progress Step 7a)."
                 )
 
             # 4b. An `estate_notice` marker may not be stripped from a task that kept its id.
@@ -1692,7 +1773,11 @@ def main():
         base_text = read_ref(a.base, a.file)   # None on first commit / untracked → skipped
 
     theme = a.session_theme if a.session_theme is not None else declared_theme(start)
-    fail, warn = check(text, base_text, theme)
+    merge_text = None
+    if a.staged and subprocess.run(["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+                                   capture_output=True).returncode == 0:
+        merge_text = read_ref("MERGE_HEAD", a.file)
+    fail, warn = check(text, base_text, theme, merge_text)
 
     if fail:
         print(f"progress-check: FAIL — {src}", file=sys.stderr)

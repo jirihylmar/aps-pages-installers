@@ -39,7 +39,15 @@ Preserve these boundaries:
   `PROJECT_CHARTER.md` § 3 *A status for a newcomer* asks for.
 - The session-start status is a checkpoint. Continue immediately only when the user's current
   request already authorized that work.
-- Every newly added phase/task needs `authored_by` and `assigned_to`.
+- Every newly added phase/task needs `authored_by` and `assigned_to`, and a new phase needs
+  `operations` (`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*).
+- Work about the running system starts from the entry document's `## Operate and Rebuild` section:
+  its Health command first, its Operating notes next, the code last. A long step (a build, a test
+  suite, a deploy) runs with the bound recorded where its *Builds and how long* row points, and a
+  step past its bound is a fault to find, not one to wait out or run again unchanged. Within the part a task
+  touches, prefer the change that leaves it running without a session and rebuildable from a
+  clean clone on any host; outside that part change nothing for its sake. `$update-progress`
+  Step 7a records it.
 - Sessions on one project are told apart by theme (`PROJECT_CHARTER.md` § 6, *Sessions are told
   apart by theme*). In Codex, `progress_check.py --declare-theme` records the theme under
   `CODEX_THREAD_ID`; where that is not in the environment nothing is recorded, the commit guard

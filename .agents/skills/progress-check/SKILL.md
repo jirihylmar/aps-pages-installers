@@ -1,6 +1,6 @@
 ---
 name: progress-check
-description: Validate progress.json for destructive corruption, append-only violations, and missing authorship or assignment metadata. Use before committing progress changes or when investigating malformed, missing, changed, or unattributed work.
+description: Validate progress.json for destructive corruption, append-only violations, missing authorship or assignment metadata, and a new phase without its operations statement. Use before committing progress changes or when investigating malformed, missing, changed, or unattributed work.
 ---
 
 # Check progress state

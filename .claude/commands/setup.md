@@ -172,6 +172,12 @@ git config core.hooksPath .claude/hooks    # repo-local config — arms the guar
 - Replace template project name with actual project name
 - Update AWS resource names with actual naming pattern
 - Adjust phases if project scope differs
+- Make sure it has an *Operations and Rebuild* section: what will keep running, how its routine
+  work runs without a session, the command that will report its health, where its operating notes
+  will live, and how a clean clone on any host is rebuilt given only the credentials and access
+  hyl-resources-manager issues; each build, test and deploy step with where it runs, how long it is
+  expected to take and its bound; and where AI agents take part and how much (`PROJECT_CHARTER.md`
+  § 8, *Token-heavy development, token-light operation* and the subsection after it)
 
 **Update progress.json:**
 - **Substitute every `{{PLACEHOLDER}}` the copied file carries** — `{{PROJECT_NAME}}`,

@@ -154,11 +154,20 @@ proposal.
 - What needs to be done?
 - What's the expected deliverable?
 - How to verify it's done?
+- Does it build or change something that keeps running? Then the phase's `operations` (below)
+  must cover it. If the phase has none, propose one with the tasks.
 
 **For phase (B):**
 - What's the objective?
 - What are the major task groups?
 - Dependencies on other phases?
+- `operations`: how what it builds runs without a session, which command will say whether it is
+  healthy, and how a clean clone on another host rebuilds it, given only the credentials and
+  access hyl-resources-manager issues. When it builds nothing that keeps running, write
+  `none: <reason>`. This is `PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light
+  operation*, and the commit guard refuses a new phase without it. A phase that builds something
+  that runs also has a task whose verify makes its rows in the entry document's
+  `## Operate and Rebuild` section true (the `operations-check` skill checks them).
 
 **For an untracked observation (C):**
 - Write it into `session_notes.md` under `### Observations (untracked)`, for a cold reader: what
@@ -233,6 +242,7 @@ If you cannot restate it for a cold reader, that is evidence it should not be tr
 **Type**: [Tasks in Phase X / New Phase X]
 **Count**: N items
 **Source**: [EnterPlanMode / Discussion / Discovery]
+**Operations** (a new phase, or a phase that gains one): [how it runs, is checked, is rebuilt | none: <reason>]
 
 | ID | Name | Size | Authored by | Assigned to | Verify |
 |----|------|------|-------------|-------------|--------|
@@ -278,6 +288,7 @@ Then ask one question in the charter § 3 form, *"Add these N items to progress.
   "theme": "web ux",   // only where sessions are told apart by theme: this session's theme
   "authored_by": "Claude|Codex|person",
   "assigned_to": "Claude|Codex|person",
+  "operations": "how what it builds runs without a session, is checked and is rebuilt | none: <reason>",
   "tasks": [
     {"id": "4.1", "name": "...", "status": "pending", "authored_by": "...", "assigned_to": "...", ...},
     {"id": "4.2", "name": "...", "status": "pending", "authored_by": "...", "assigned_to": "...", ...}
@@ -416,6 +427,7 @@ After `/add-work`:
 - Reorder existing tasks
 - Add work without user approval
 - Add a phase or task without both `authored_by` and `assigned_to`
+- Add a phase without `operations`
 - Create "large" tasks (break them down)
 - Record an unauthorized concern in `progress.json` under any key — no catch-all array, no
   free-string list, no "notes" field standing in for one. Route it by *The Four Destinations*.

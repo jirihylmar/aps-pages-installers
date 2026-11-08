@@ -35,7 +35,7 @@ not emit one mid-run. And a yield of either kind is governed by `PROJECT_CHARTER
 section 11, *Unattended operations*, whenever tracked work depends on a future external state
 change: Step 9a below is the command-backed check that must pass before the response goes out. The
 contract is stated in the charter once, for both executors; this file only enforces it. The correct transition is:
-`Task X.Y complete and pushed (docs: <files brought into line> | none needed). Continuing with X.Z: <plain-language outcome>.`
+`Task X.Y complete and pushed (docs: <files brought into line> | none needed; ops: <what moved toward running without a session> | none). Continuing with X.Z: <plain-language outcome>.`
 Then invoke tools for X.Z in the same response.
 
 For `TASK_BOUNDARY`, run Steps 1, 2, 2a, 3, 3b, 3a when applicable, 4, 6–10, and the task-scoped
@@ -43,7 +43,8 @@ portion of Step 5. Defer Step 2b, Step 3c, Step 9b, the full session handoff in 
 and Step 12 until an actual `SESSION_CLOSE`. This keeps publication reliable without making every commit pay the
 cost—or adopt the stopping posture—of ending a session. The documentation steps are not that cost.
 Step 12's *Documentation swept* table waits for the close, so at a task boundary Step 7's result is
-recorded in the task's `verify_result` as `docs:` and named in the transition.
+recorded in the task's `verify_result` as `docs:` and named in the transition. Step 7a's result
+is recorded beside it as `ops:` and named in the transition too.
 
 A progress update made any other way (inline, by a lane, by a subagent, by a step of a workflow
 script) is this procedure in this mode, and in delegated work one executor records: you, or the
@@ -71,6 +72,9 @@ The next ready task is an open task whose `depends_on` names no task that is sti
   `estate-align` would revert such an edit
 - Add `verify_result` field
 - Add NEW tasks with NEW IDs
+- Add `operations` to a **non-terminal** phase that has none, when this session learned how what
+  it builds runs and is rebuilt (`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light
+  operation*); a new phase carries it from the start
 - Update `current_task` pointer
 - Update `last_updated` timestamp — a UTC instant, never a bare date (Step 3)
 - Update `last_session_summary`
@@ -225,6 +229,12 @@ says nothing about which goal it *serves*. That single confusion is what turns a
 and by the time anyone reads it the surrounding context has moved. `"fix the thing we discussed"` is
 already worthless. If you cannot restate it so a cold reader can act on it — what is wrong, where,
 and how you know — that is evidence it should be **dropped**, not carried.
+
+**The new phase carries `authored_by`, `assigned_to` and `operations`.** `operations` says how
+what the phase builds runs without a session, is checked and is rebuilt from a clean clone, or
+`none: <reason>` when it builds nothing that keeps running (`PROJECT_CHARTER.md` § 8,
+*Token-heavy development, token-light operation*). The commit guard refuses a new phase without
+it.
 
 ---
 
@@ -985,6 +995,50 @@ takes it in `notes`. A completion with no `docs:` is one this step did not run f
 3. If it needs a per-session review trigger, add it to `.claude/local-overlays/update-progress.md`
 4. **Never edit this file to register it.** It is a distributed default; the next distribution
    overwrites your edit and the drift check flags the project until a human adjudicates it.
+
+### 7a. Leave What This Task Touched Cheaper to Run and Rebuild
+
+`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*, sets the goal: what
+runs needs no session to keep it running, one command says whether it is healthy, how to operate it
+is written down, and a clean clone on any host rebuilds it, given only the credentials and access
+hyl-resources-manager issues. This step applies the goal to the parts in Step 7's listing that run,
+and to nothing else. A part the task did not touch is not opened for its sake, and no phase is
+opened only to bring old parts into line.
+
+For each part that runs and that the task touched, take the step that lies inside the task's own
+scope:
+- a check run by hand that will be needed again becomes a committed command (Step 8d, when it is
+  an audit), and a `verify` that only a reader can judge becomes one that answers;
+- a step performed by hand in a console or on a host goes into the authoritative path
+  (`PROJECT_CHARTER.md` § 9, *Infrastructure has one authoritative path*), and a schedule a session
+  kept becomes a timer or a scheduled job kept in git;
+- what the task worked out about operating the part is written down where the entry document
+  points for it;
+- what the part needs that a clean clone on another host would not have (a file, a host path, a
+  secret) is named in the repository, a secret by its stable identifier and never its value;
+- a build, test or deploy step the task ran is listed in `README.md` with where it runs, its
+  command, its time and its bound (`PROJECT_CHARTER.md` § 8, *What builds where, how long it takes,
+  and where agents take part*): its row is written when the step is not listed yet, and its time is
+  corrected only when this run took less than half or more than one and a half times the recorded
+  one, or ran past its bound. A project skill or command that runs the step (`grep -l -F --
+  '<the command>' .claude/skills/*/SKILL.md .agents/skills/*/SKILL.md .claude/commands/*.md`,
+  leaving out the distributed defaults) gives the same time and bound. What an agent now does in
+  the part, or no longer does, is written where the section's *Where agents take part* row points;
+- the part's rows in the entry document's `## Operate and Rebuild` section say what is now true.
+  Where the entry document (`CLAUDE.md`, or `AGENTS.md` where the project has no `CLAUDE.md`) has
+  no such section, add it in the form
+  the `operations-check` skill gives, filling only what this task established. Then run
+  `python3 .claude/skills/operations-check/operations_check.py` and correct any row it reports
+  `MISSING-PATH` or `HOST-PATH` (a file git does not hold, a heading that file does not have, or a
+  host path).
+
+A larger gap found on the way is reported in the session report. It becomes work only on the
+operator's word (`/add-work`).
+
+**This step leaves a record too.** Beside the `docs:` record, end the task's `verify_result` with
+`; ops: <what this task moved toward running and rebuilding without a session>`, or
+`; ops: none, nothing this task touched runs`. A task already committed as complete takes it in
+`notes`.
 
 ### 8. Maintain Project-Specific Skills
 

@@ -19,8 +19,9 @@ Preserve these boundaries:
   committing, pushing, or advancing from one task to the next is `TASK_BOUNDARY`; it is never by
   itself a reason to yield.
 - In `TASK_BOUNDARY`, run the task verification, documentation (Steps 2a and 7, recorded as
-  `docs:` in `verify_result`), progress and publication steps, announce the result in one concise
-  transition that names the documents brought into line,
+  `docs:` in `verify_result`), the operations step (Step 7a, recorded as `ops:` beside it:
+  `PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*), progress and publication steps, announce the result in one concise
+  transition that names the documents brought into line and the `ops:` record,
   and immediately work on the next ready authorized task in the same turn.
   Do not produce the Step 12 handoff or end the response unless a declared approval checkpoint,
   genuine blocker, explicit stop request, or absence of safe authorized work makes this a real
@@ -47,7 +48,8 @@ Preserve these boundaries:
 - Re-read `progress.json` immediately before editing because another executor may have changed it.
 - Complete a task only after its concrete verification passes; record the actual result.
 - Never delete tasks. Follow the established started/unstarted mutability rule.
-- Every newly added phase/task needs `authored_by` and `assigned_to`.
+- Every newly added phase/task needs `authored_by` and `assigned_to`, and a new phase needs
+  `operations`; the commit guard refuses a new phase without it.
 - Where phases carry a `theme`, add, edit, reshape or close tasks only in this session's theme's
   phases; work for another theme's goal goes to that theme's session (`PROJECT_CHARTER.md` § 6,
   *Sessions are told apart by theme*). Any session may act on an estate notice in any phase and

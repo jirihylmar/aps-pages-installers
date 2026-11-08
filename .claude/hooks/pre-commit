@@ -11,6 +11,9 @@
 # keep committing while a brand-new 36MB lambda-deployment.zip is blocked.
 # It also NOTES, never refuses, a staged skill or command whose frontmatter an
 # executor may not read (description: not on one line, or a fence never closed).
+# It REFUSES an architecture image under docs/architecture/ that the commit adds or
+# changes when the docs-check skill measures it too large to read where it is shown,
+# and NOTES what else docs-check finds in what the commit adds under docs/.
 #
 # CANONICAL: edit ONLY at _project-template/.claude/hooks/pre-commit in
 # syndicate-playbooks-examples, then run /distribute-defaults. Do NOT hand-edit
@@ -195,7 +198,7 @@ done < <(git diff --cached --name-only -z --diff-filter=A "$BASE" 2>/dev/null)
 # distribution preflight when they differ, so a new central skill can never be refused by the
 # guard it is delivered with. `syndicate-*` is the central namespace (docs/terminology.md).
 # ---------------------------------------------------------------------------
-DISTRIBUTED_NAMES=" add-work central-sign-in check-aws consult-claude consult-codex distribute-defaults docs-check generate-architecture generate-phases naming-conventions open-work operational-mail overlay-check progress-check refs-check repo-hygiene server-report setup setup-workflow-only start-session syndicate-connect syndicate-request syndicate-refresh-remote unattended-check update-progress "
+DISTRIBUTED_NAMES=" add-work central-sign-in check-aws consult-claude consult-codex distribute-defaults docs-check generate-architecture generate-phases naming-conventions open-work operational-mail operations-check overlay-check progress-check refs-check repo-hygiene server-report setup setup-workflow-only start-session syndicate-connect syndicate-request syndicate-refresh-remote unattended-check update-progress "
 
 project_code() {
   local raw=""
@@ -332,21 +335,92 @@ if [ -n "$frontmatter_notes" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# docs/ holds what persists - a NOTE, never a refusal (PROJECT_CHARTER.md § 11, *`docs/` holds what
-# persists*). Runs only when the commit adds or changes something under docs/, and only through the
-# distributed checker, so this guard and /repo-hygiene apply one rule the same way. On what this
-# commit ADDS: a phase, session or working name, a hand-off outside docs/handoff/, a dated record
-# without its record line. On an added or changed architecture image: a size too large to read where
-# it is shown. Material already tracked is not noted again here; /repo-hygiene reports it.
+# docs/ holds what persists (PROJECT_CHARTER.md § 11, *`docs/` holds what persists*). Runs only when
+# the commit adds or changes something under docs/, and only through the distributed checker, so this
+# guard, /repo-hygiene and /generate-architecture apply one rule the same way.
+#   - An architecture image (docs/architecture/) that this commit adds or changes and that docs-check
+#     measures too large to read where it is shown (diagram-unreadable) REFUSES the commit.
+#   - Everything else docs-check finds in what this commit ADDS (a phase, session or working name, a
+#     hand-off outside docs/handoff/, a dated record without its record line) is a NOTE.
+# Material already tracked is neither noted nor refused here; /repo-hygiene reports it. An image
+# already tracked is refused only once a commit changes it, and moving one to docs/_archive/ is not
+# refused: archiving the old picture is how it is retired. Concluding a merge, only an image the
+# resolution itself wrote (its staged blob differs from MERGE_HEAD too) is refused; one the other
+# branch brought unchanged is noted.
 #
-# Why a note and not a refusal: a name is evidence, not proof, and a guard that refuses what an
-# executor meant gets switched off. What the note is for is the moment of writing: measured
-# 2026-10-30, three days after the rule moved working material out of docs/, one project still
-# tracked the same 15 docs/phase-* directories, and nothing had said so when any was written.
+# Why the two differ. A name is evidence, not proof, and a guard that refuses what an executor meant
+# gets switched off; what a note is for is the moment of writing (measured 2026-10-30: three days
+# after the rule moved working material out of docs/, one project still tracked the same 15
+# docs/phase-* directories, and nothing had said so when any was written). An image's size is a
+# measurement, not a reading of intent: over the limit, a README column shows it scaled down until
+# its labels cannot be read, whatever was meant, and the remedy is one command run. And a note did not
+# move anyone: the views rule and this check shipped 2026-10-30 (engine phase 143) with the image
+# only noted; measured 2026-11-08 at every project's origin HEAD, 23 projects still showed an
+# architecture image over the limit and only 2 of the 25 with a docs/architecture/generate.py drew
+# the template's views. Nine days of notes had changed none of the 23.
+#
+# Fails OPEN on missing tooling, as the progress.json check below does: no python3, no checker, or a
+# checker that cannot run (exit 2 with nothing measured) commits as before, and the note below says
+# what could not be read. A diagram-unreadable finding is refused even when docs-check could not read
+# some other path. Override (audited): git commit --no-verify
 # ---------------------------------------------------------------------------
 DOCS_CHECK=".claude/skills/docs-check/docs_check.py"
 if [ -f "$DOCS_CHECK" ] && command -v python3 >/dev/null 2>&1 \
    && git diff --cached --no-renames --name-only --diff-filter=AMT "$BASE" -- docs 2>/dev/null | grep -q .; then
+  # -z: an unusual path name is quoted otherwise, and a quoted name does not end in .png.
+  if git diff --cached --no-renames --name-only -z --diff-filter=AMT "$BASE" -- docs/architecture 2>/dev/null \
+       | tr '\0' '\n' | grep -qiE '\.(png|jpe?g)$'; then
+    # Concluding a merge (MERGE_HEAD exists), the diff against HEAD also lists every image the other
+    # branch brought in unchanged, which this commit did not write. Only an image whose staged blob
+    # differs from MERGE_HEAD as well, one the resolution itself wrote, is refused; the rest reach the
+    # note below. Found by review (2026-11-08): a host still on the old guard commits an over-limit
+    # image, and the next host to resolve an unrelated conflict while merging it was refused for it.
+    dg_merge=""; dg_merge_paths=""
+    if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+      dg_merge=1
+      dg_merge_paths="$(git diff --cached --no-renames --name-only -z --diff-filter=AMT MERGE_HEAD -- docs/architecture 2>/dev/null | tr '\0' '\n')"
+    fi
+    dg_rows="$(python3 -I "$DOCS_CHECK" --staged --diagrams-only --json 2>/dev/null \
+      | DG_MERGE="$dg_merge" DG_MERGE_PATHS="$dg_merge_paths" python3 -I -c '
+import json, os, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+merge = os.environ.get("DG_MERGE") == "1"
+written = set(os.environ.get("DG_MERGE_PATHS", "").split("\n"))
+for f in d.get("findings") or []:
+    if isinstance(f, dict) and f.get("kind") == "diagram-unreadable":
+        p = str(f.get("path"))
+        if merge and p not in written:
+            continue                  # the other parent brought it unchanged: a note, not this commit
+        print("  %s  %s" % (p if p.isprintable() else ascii(p)[1:-1], " ".join(str(f.get("message")).split())))
+' 2>/dev/null)"
+    if [ -n "$dg_rows" ]; then
+      {
+        echo "COMMIT BLOCKED by .claude/hooks/pre-commit — an architecture image too large to read."
+        printf '%s\n' "$dg_rows"
+        echo ""
+        if [ -n "$dg_merge" ]; then
+          echo "This merge's resolution writes the image(s) above under docs/architecture/ (each differs"
+          echo "from both parents; an image the other branch brought unchanged is only noted), and docs-check"
+        else
+          echo "This commit adds or changes the image(s) above under docs/architecture/, and docs-check"
+        fi
+        echo "measures each over the limit it gives beside it: a README column about 880 px wide shows"
+        echo "it scaled down until its labels cannot be read. Split it into views: run /generate-architecture."
+        echo "It draws an overview, detail views, a flow chart and a swim lane, each within the limit,"
+        echo "keeps the overview in README.md and archives the old picture to docs/_archive/architecture/."
+        echo "Check the views before committing them:"
+        echo "  git add docs/architecture && python3 .claude/skills/docs-check/docs_check.py --diagrams-only"
+        echo "An image already tracked is not refused until a commit changes it, and moving one to"
+        echo "docs/_archive/ is not refused. The limit and why: .claude/skills/docs-check/SKILL.md,"
+        echo "The diagram limit."
+        echo "Override (audited): git commit --no-verify"
+      } >&2
+      exit 1
+    fi
+  fi
   dc_out="$(python3 -I "$DOCS_CHECK" --staged 2>&1)"; dc_rc=$?
   if [ "$dc_rc" = 1 ]; then
     { echo "docs/ (staged) - docs-check notes; NOT blocking this commit:"
@@ -395,6 +469,8 @@ if git diff --cached --name-only 2>/dev/null | grep -qx 'progress.json'; then
         echo "task id — and on the append-only rule: a task/phase (or an estate_notice marker)"
         echo "that existed in the last commit and is now gone — plus a NEW phase/task without"
         echo "authored_by and assigned_to. Mark tasks superseded; name author and owner on additions."
+        echo "A NEW phase also needs 'operations': how what it builds runs without a session, is"
+        echo "checked and is rebuilt from a clean clone, or 'none: <reason>' (PROJECT_CHARTER.md § 8)."
         echo "It also fails on the project-metadata contract: an unsubstituted {{TEMPLATE}} token"
         echo "left in root project/description/created_at, an unattended operation described only"
         echo "in part, a phase closed with no completion date, and current_task written as an"

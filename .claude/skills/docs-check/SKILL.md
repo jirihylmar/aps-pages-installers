@@ -51,7 +51,7 @@ the code.
 | `not-persistent` (hand-off folder) | `docs/Handoff/`, `docs/HANDOFF/`: the hand-off folder in the wrong case. Only `docs/handoff/` is skipped, so on a case-sensitive file system the two are different folders. | Rename it to `docs/handoff/`. |
 | `not-persistent` (diagram) | Under `docs/architecture/`, an image whose path carries a date, or a **directory** whose name does (marked with a record line or not): a snapshot of a past state. | Archive it under `docs/_archive/`, or redraw it as the current view and take the date out of its name. |
 | `record-unmarked` | A text file (`.md .markdown .txt .html .htm .rst .adoc`) whose name carries a date (`YYYY-MM-DD`, `YYYYMMDD` or `YYYY-MM`, `-` or `_` between the parts), without the record line. A **directory** outside `docs/architecture/` whose name carries a date is one finding for everything under it, unless a text file directly inside it, such as its `README.md`, carries the line (a symlink is never read, so a linked README does not mark it). A dated file that is not text is silent: its name identifies it. | If it is a record (an incident report, an audit, a measurement baseline, a periodic review), add the record line. A phase's or a session's notes, or a run's output, is not a record: fold what lasts into the canonical document it changes, move working material to `work/phase-<id>/` (a run's output to a path outside `docs/`), and archive the rest. If it is meant to be current, take the date out of its name and keep it current. For a dated directory, if a command or script of this project writes it there, change that command too, or it comes back. |
-| `diagram-unreadable` | A `.png`, `.jpg` or `.jpeg` under `docs/architecture/` over the limit, **1350 x 1600 px**, wherever it is below that: the size rule is not a naming rule, so an image under a directory reported for its name is measured too. The message gives its size, the limit, the scale it is shown at in an 880 px column and the size a 13 pt label (the `diagrams` package's default) becomes there. | Split it into views with `/generate-architecture`: an overview, detail views, a flow chart or a swim lane, each within the limit. |
+| `diagram-unreadable` | A `.png`, `.jpg` or `.jpeg` under `docs/architecture/` over the limit, **1350 x 1600 px**, wherever it is below that: the size rule is not a naming rule, so an image under a directory reported for its name is measured too. The message gives its size, the limit, the scale it is shown at in an 880 px column and the size a 13 pt label (the `diagrams` package's default) becomes there. | Split it into views with `/generate-architecture`: an overview, detail views, a flow chart or a swim lane, each within the limit. The commit guard refuses a commit that adds or changes such an image. |
 
 The record line **starts** one of the first 15 lines (after `>`, `*`, `-` or `**`, if any). A
 line ends at `\n`, `\r\n` or `\r`, and a leading byte-order mark is ignored. The first 15 lines are
@@ -83,8 +83,15 @@ stamp 72 dpi regardless. SVG, GIF and WebP are not measured.
 
 ## Who runs it
 
-- **The commit guard** runs it with `--staged`. It notes a finding in what the commit adds and
-  **never refuses** the commit.
+- **The commit guard** runs it with `--staged`. When the commit adds or changes an image under
+  `docs/architecture/`, it runs `--staged --diagrams-only --json` first and **refuses** the commit
+  for a `diagram-unreadable` finding, naming the image, its size and the limit, and pointing at
+  `/generate-architecture` (override, audited: `git commit --no-verify`). Every other finding in
+  what the commit adds it **notes** and never refuses the commit for. A size is a measurement and a
+  name is evidence: an image over the limit cannot be read whatever was meant, and on 2026-11-08,
+  nine days after the limit shipped as a note, 23 projects still showed one at their origin HEAD.
+  An image already tracked is refused only when a commit changes it, and moving one to
+  `docs/_archive/` is not refused. The guard fails open when the check cannot run.
 - **`/repo-hygiene` Step 0** runs it over the tracked tree as quick check H.
 - **`/generate-architecture` Step 5** runs it with `--diagrams-only` after drawing.
 
@@ -115,8 +122,9 @@ anyway).
   document is canonical and current is a judgement, and the hygiene pass makes it (`/repo-hygiene`).
 - **A word can be a false positive.** `temp-sensors.md` is a temperature document and is reported
   as working state; `2.1-migration.md` reads as a task id. There is no allow-list. The callers
-  note and report and never refuse, so a false positive costs one line of output. The cure is a
-  name that says what the file is.
+  note and report a name and never refuse it, so a false positive costs one line of output. The
+  cure is a name that says what the file is. Only the size of an architecture image, a measurement,
+  is refused, and only by the commit guard.
 
 ## Related skills
 

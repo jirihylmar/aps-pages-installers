@@ -50,8 +50,9 @@ which would shrink its labels again. Graphviz renders at 96 dpi and the library'
 (17.3 px): an image 1,350 px wide, shown 880 px wide, still shows them at 11 px, and 1,600 px tall
 is about one screen at that scale. `generate.py` reports each view's counts and fails a view over
 budget, and an image in `docs/architecture/` it neither drew nor lists in `KEEP` (Step 6);
-`docs-check` measures the images (Step 5), and so do the commit guard and `/repo-hygiene` when an
-image changes.
+`docs-check` measures the images (Step 5). The commit guard runs it too and **refuses** a commit
+that adds or changes an image in `docs/architecture/` over the limit, and `/repo-hygiene` reports
+one already tracked.
 
 **The extent:** an overview, at most four detail views, and at most three flow charts and swim
 lanes together. A solution that
@@ -110,6 +111,17 @@ from the template in Step 3, and what it drew becomes material for the plan: the
 picture is what the operator could not read. Another script beside it that the project keeps,
 drawing an image of its own (a physical topology, say), stays as it is (Step 6).
 
+Read, too, the drawing of the whole solution that `README.md` or `docs/architecture/README.md`
+shows in another form or place: an image outside `docs/architecture/` (`docs/architecture.png`,
+say), a drawing in text (ASCII boxes and arrows), a mermaid block. It is material for the plan like
+the old picture; the overview and its link (Step 7) replace it, and it is archived (Step 6), so that
+page never shows a second, older architecture beside the views. Any other drawing stays where it is
+and is read as material only: a sequence diagram inside a runbook, one subsystem or process in its
+own document, a design, a hand-off, a plan of a system not yet built. The one exception is an image
+measured over the limit (by `docs-check`, or by a central survey that names it): it is redrawn as a
+view or archived, wherever it is. The commit guard and `docs-check` measure only
+`docs/architecture/`, so an image elsewhere is found by reading, not by the check.
+
 ### 2. Plan the views
 
 Establish the architecture in this source order, stopping at the first that answers:
@@ -127,7 +139,21 @@ a reader is looking at. `docs/architecture/README.md` names the source actually 
 
 From that source, list the solution's actors (who uses or runs it), its subsystems (parts a reader
 would name: ingestion, the API, the admin console), the external systems it talks to, and up to
-three processes people ask about (none, if nobody asks). Then decide the views by the table above:
+three processes people ask about (none, if nobody asks).
+
+Among the actors, list the agent sessions (Claude, Codex) wherever they do work in the solution, in
+its development or in its operation: the session that writes and deploys it, one that runs a
+weekly step, one an operator starts to answer a request. The views then show where agents take part
+and how much, which a reader cannot tell from the cloud resources alone; the operator, 2026-11-08:
+*"where ai agents participate and how much are involved"*. Where the project builds and deploys in
+more than a step or two, its release is one of the processes: a swim lane with one lane per place a
+step runs (the workstation, a member host, a pipeline, the cloud, an agent session), each step
+labelled with how long it takes, from the build times `README.md` records, when the project records
+them (`PROJECT_CHARTER.md` § 8, *What builds where, how long it takes, and where agents take part*;
+the entry document's *Builds and how long* and *Where agents take part* rows point at them). A
+project that records no times yet gets the lane without them.
+
+Then decide the views by the table above:
 the overview always; a detail view for each subsystem with more parts than the overview can hold;
 a flow chart for a process with decisions in it; a swim lane for a process that crosses actors. A
 flow chart shows how a process runs at a glance; it does not restate a procedure whose steps have
@@ -140,7 +166,11 @@ a home elsewhere (a runbook, a command): name that home in the view's section of
 If `docs/architecture/generate.py` does not exist, or was not built from the template, write it
 from the template below and the plan, and say so in the report: no `generate.py` was found, or
 the one there drew a single diagram, so one was written as views. Writing it is the work
-this command was run for, not a decision to put to the operator (`PROJECT_CHARTER.md` § 3).
+this command was run for, not a decision to put to the operator (`PROJECT_CHARTER.md` § 3). When
+the existing `generate.py` reads project files (a contract, a configuration) or writes anything
+besides its images that a test or a document names (a record of what it drew, say), the rewritten
+views generator keeps reading those inputs and writing those outputs, and the project's own tests
+run before the commit.
 
 Replace the examples in `draw()` with the plan's views, one for each line of the `Views:` block,
 delete each example the plan has no view for, and fill in the `{{...}}` placeholders; keep the
@@ -178,7 +208,9 @@ run that says `0 paths checked` checked nothing). Exit 1: it names each image ov
 scale it is shown at in an 880 px column and what its labels become there; split that view
 (Step 3). Exit 2: a path could not be read: it is named, and the findings for the rest are still
 printed; fix that and run it again. An image whose name carries a date is reported too: it is a
-snapshot of a past state, so it is archived (Step 6) or redrawn as a current view.
+snapshot of a past state, so it is archived (Step 6) or redrawn as a current view. The commit guard
+runs the same measurement when you commit and refuses a commit that adds or changes an image in
+`docs/architecture/` over the limit, so a view that fails here does not get committed either.
 
 Then **look at every image** (the Read tool shows it). A view within the limit can still be hard to
 read: labels over each other, a swim lane step outside its lane, a long edge label. Fix what you see
@@ -197,6 +229,12 @@ and a document that cites the snapshot itself cites it at its archive path.
 ```bash
 mkdir -p docs/_archive/architecture && git mv -- docs/architecture/<old>.png docs/_archive/architecture/
 ```
+
+An architecture image outside `docs/architecture/` that Step 1 replaces is moved the same way
+from where it is. A drawing in text that the overview replaced in `README.md` or
+`docs/architecture/README.md` (ASCII boxes, a mermaid block) is moved out of that page into a file
+there named for what it showed, such as `docs/_archive/architecture/readme-drawing.md`, and that
+page keeps only the overview and its link. A drawing in any other document stays in it.
 
 ### 7. Update README.md
 

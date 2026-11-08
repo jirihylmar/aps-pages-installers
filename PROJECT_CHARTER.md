@@ -12,7 +12,8 @@ Project-specific requirements may strengthen it, but must not silently weaken it
 5. Prefer technical elegance where it supports the priorities above.
 
 Cost is controlled through budgets, measurement, ownership and expiry. Available capacity should
-not remain unused merely to minimise cost.
+not remain unused merely to minimise cost. Development is where that capacity goes, so that what it
+builds runs on little of it (§ 8, *Token-heavy development, token-light operation*).
 
 ## 2. Own the outcome
 
@@ -185,8 +186,9 @@ The section above asked for questions in plain words; nothing asked the same of 
 ## 4. Work from outcomes and keep open work coherent
 
 Every phase has one stakeholder-verifiable outcome, explicit scope and non-goals, acceptance
-checks, dependencies, affected systems and repositories, recovery path, and completion evidence.
-Task completion does not prove phase completion; verify the outcome independently.
+checks, dependencies, affected systems and repositories, recovery path, how what it builds runs and
+is rebuilt once it is up (§ 8, *Token-heavy development, token-light operation*), and completion
+evidence. Task completion does not prove phase completion; verify the outcome independently.
 
 Planned, pending, ongoing, in-progress, blocked and deferred tasks are editable planning state.
 When evidence changes, refine, combine, divide, reassign, re-scope or relocate them so they describe
@@ -342,6 +344,87 @@ same host read its seeds and a ledger from it. Nothing recorded that dependency,
 followed had to rebuild both from another machine. The repair then left a one-file folder under the
 repository's name that no estate tool could see, and its absence made the dependent test skip
 instead of fail.
+
+### Token-heavy development, token-light operation
+
+Building a system is worth many tokens. Running it once it is up should cost few, and the tokens
+spent building it are spent for that. A part that keeps running, such as a service, a pipeline, a
+scheduled job or a deployed stack, is built so that:
+
+- **It runs without a session.** Routine work such as refreshes, renewals, backups and reports is a
+  timer, a scheduled job or a pipeline kept in git and durably supervised as § 11 *Unattended
+  operations* defines, never a recurring agent session. When something needs a person, the
+  project's alarm or operational mail says so.
+- **One command says whether it is healthy.** A committed check reads the running system and exits
+  non-zero on a problem, so a maintenance session starts from its output instead of rediscovering
+  the system.
+- **Operating it is written down.** What to do about each problem met so far is in the repository,
+  so the next session follows it instead of working it out again.
+- **It rebuilds from git on any host.** A clean clone on a host it has never run on, given only the
+  credentials and access hyl-resources-manager issues (§ 3), builds and deploys it by a documented
+  path, with secrets named by stable identifier and account and region taken from committed values
+  (§ 9). That is the clean clone above, held for every host and not only the declared ones. A
+  rebuild path is evidence once a clean clone has followed it (§ 10, *Verify reality*).
+
+The project's entry document (`CLAUDE.md`, or `AGENTS.md` where the project has no `CLAUDE.md`) carries a
+section `## Operate and Rebuild` with one row for each of the four, and two more for what the next
+subsection asks. Each row names the committed file that does it, or says `not built yet` or
+`none: <reason>`. The `operations-check` skill reads
+the section and reports a row that names a file git does not hold.
+
+This binds new work. A new phase says in its `operations` field how what it builds runs, is checked
+and is rebuilt, or says `none: <reason>` when it builds nothing that keeps running, and the commit
+guard refuses a new phase without it. A new project's specification and entry document carry the
+four from the start.
+
+An existing system is not refactored to comply. No phase is opened and no notice sent only to bring
+old parts into line, and a gap against this rule in work that already exists is not a defect whose
+class § 5 sends you to sweep. Instead, each task that changes a running part leaves it no harder to
+operate or rebuild than it found it, and takes the step toward the four that lies inside its own
+scope: the check for the component it changed, the manual step it just performed put into a
+script, the operation it just worked out written down, that part's rows filled. A larger gap it
+finds is reported, and it becomes work only on the operator's word.
+
+The operator, 2026-11-08: *"tokens heavy development, tokens light maintenance ... we invest in
+development which costs a lot of tokens (high cost) with purpose to use a few tokens (low cost) for
+operations once the system is up and running. And rebuildable on git on any host (provided resman
+issues credentials and access) is critical to that mission."* And on how it should arrive: *"i dont
+want to trigger an avalanche of refactors, make it a natural development, enforced for new tasks,
+new projects automatically and for existing by spontaneous evolution"*. Three days earlier, of a new
+project: *"development token heavy, naturally, maintenance token light"*. Until then the charter
+asked for a clean clone that recovers the system and never said what the recovery is for, and
+nothing asked how what a phase builds is run once it is up.
+
+### What builds where, how long it takes, and where agents take part
+
+The project's `README.md` lists each build, test and deploy step with where it runs (the
+workstation, a member host, a pipeline, the cloud), the command that runs it, how long it took when
+last measured, and the bound past which it is stopped and looked into. A project skill or command
+that runs such a step gives the same time and bound. A session reads them before it starts a step
+and puts the bound inside the command, on the host where the step runs (`timeout <n> <command>`,
+inside the remote command for ssh), because a tool's own time limit may move a process to the
+background instead of ending it. Where nothing is recorded yet, the session sets the bound itself, a
+few times the step's last observed time or 10 minutes when it has never been timed, and records the
+time and the bound it used. It runs the narrowest step that proves its change and the full gate
+once, and treats a step running past its bound as a fault to find, never as something to wait out
+or to run again unchanged. A row's time is corrected when a run takes less than half or more than
+one and a half times it.
+
+The same `README.md` says where AI agents take part and how much: which development work agent
+sessions do and on which host, what in operation still needs a session and how often, and every call
+to a model the product itself makes, with its rate. Operation that needs no agent says so.
+
+The entry document's `## Operate and Rebuild` section points at both, in its rows *Builds and how
+long* and *Where agents take part*, and they bind as the subsection above does: new phases and new
+projects carry them, and an existing project fills them in when a task runs a step or changes what
+an agent does.
+
+The operator, 2026-11-08: *"whats builds and where, how long these take (we facing issues that i see
+some shells running for a long time and dont know whats taking so long. in many cases, we are
+looping in unnecessary long cycles) ... its also question of time, not theirs but in more general
+time to market. i understand our projects are complex but they should have this in mind and
+DOCUMENTED in readmes, claudes, skills eg."* And: *"where ai agents participate and how much are
+involved"*.
 
 ## 9. Infrastructure has one authoritative path
 
@@ -562,8 +645,10 @@ document meant to be current carries no date in its name.
 `docs-check` (`.claude/skills/docs-check/`) reports what breaks these rules by its name or its
 size: a phase, session or working name (dated or not), a hand-off outside `docs/handoff/`, a dated
 record without its line, a dated architecture image, and an architecture diagram too large to read
-at the width it is shown (`/generate-architecture`). The commit guard notes it on the commit that adds it and never refuses
-that commit; `/repo-hygiene` reports it over the whole tree. Ad hoc content under a neutral name is
+at the width it is shown (`/generate-architecture`). The commit guard refuses a commit that adds or
+changes an architecture image too large to read, because its size is measured, not inferred; it
+notes the rest on the commit that adds it and never refuses that commit for them. `/repo-hygiene`
+reports all of it over the whole tree. Ad hoc content under a neutral name is
 not caught by any name, and finding it is the hygiene pass's judgement.
 
 Measured 2026-10-30, after the operator's feedback that day: *"docs folder this should hold only

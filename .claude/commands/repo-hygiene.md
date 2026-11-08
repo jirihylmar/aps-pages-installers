@@ -1097,3 +1097,10 @@ extracted from this file, against fixtures.
   wholesale naming fragmentation), do NOT fan out into a remediation inside this pass: record the
   evidence, defer with the count, and let the operator decide whether to open dedicated work. The
   one-off 63-agent audit this mechanism exists to prevent started as exactly that fan-out.
+- **Operations and rebuild follow the same bound.** The pass runs
+  `python3 .claude/skills/operations-check/operations_check.py` once and gives its verdict in the
+  pass report. A missing `## Operate and Rebuild` section, or a row still `not built yet`, is left
+  to the task that next touches that part (`/update-progress` Step 7a), never opened as work here
+  (`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*). A row the checker
+  reports `MISSING-PATH` or `HOST-PATH` (a file git does not hold, a heading that file lacks, or a
+  host path) is a false statement in a canonical document, and the pass corrects it.

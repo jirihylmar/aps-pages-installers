@@ -1,6 +1,6 @@
 ---
 name: progress-check
-description: Check progress.json for corruption that destroys data, preserve task and phase identity, require authored_by plus assigned_to on new work, and warn when a terminal task's semantic record changes. Invoke before committing progress.json or investigating missing, changed, malformed, stale, or unattributed work.
+description: Check progress.json for corruption that destroys data, preserve task and phase identity, require authored_by plus assigned_to on new work and an operations statement on new phases, and warn when a terminal task's semantic record changes. Invoke before committing progress.json or investigating missing, changed, malformed, stale, or unattributed work.
 ---
 
 # progress-check
@@ -44,6 +44,7 @@ a fresh clone has no hook until then. When it matters, run it by hand.
 | **Duplicate task id in a phase** | Two records claim to be the same task; which one any tool reads is arbitrary. |
 | **A task or phase present in the last commit is absent** | Not necessarily data loss — the previous commit still holds a removed task's text, and an empty phase has none to lose: this is the framework's oldest rule — *never remove a task, mark it superseded* — the **append-only policy**, enforced mechanically instead of by prose. It compares ids only, so it refuses the removal of an **empty** phase exactly as it refuses a full one (`phase 'x' existed in the previous commit and is now GONE (0 task(s) with it)`). Uniform on purpose: the checker cannot judge whether what vanished mattered, so it does not try. — And, since 2026-08-06, an `estate_notice` marker stripped from a task that kept its id, for the same reason: the next central run would append a second copy. |
 | **A newly added phase or task lacks `authored_by` or `assigned_to`** | Operator decision 2026-08-29: the record must say who wrote an entry and whose job execution is. This is prospective, detected by comparison with the previous commit; historical work is not rewritten to adopt a new schema. The two values may differ. |
+| **A newly added phase lacks `operations`, or says `none` with no reason** | Operator decision 2026-11-08: a phase says how what it builds runs without a session, which command reports its health and how a clean clone on another host rebuilds it, or `none: <reason>` when it builds nothing that keeps running (`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*). Prospective, as the identity rule is: phases already in history are never back-filled for it. Phases only, never tasks: an estate notice is a task appended to an existing phase, so no notice delivery is refused by it. A sentence that only begins with the word *None* is a statement and passes; a bare `none`, `None:` or `none.` does not, and neither does a value that is not a string. |
 | **Required root metadata still holds an unresolved `{{TOKEN}}`** | `project`, `description` and `created_at` say what this project is; a template token there means the record describes the template it was copied from. Shipped since before this rule was written down. With no committed base — the shipped bootstrap and both example playbooks, which carry the tokens on purpose — it downgrades to a warning, so a freshly bootstrapped project is not blocked before it has substituted anything. |
 | **An `unattended` block that describes an operation incompletely** | `PROJECT_CHARTER.md` section 11 makes the difference between a watched operation and an unwatched one a fact about recorded state. A half-described operation reads as supervised and is not. Strict rather than prospective, and deliberately so: the key did not exist before 2026-09-02, so there is no historical vocabulary to tolerate. The required fields and the permitted values live in `progress_check.py` and are not restated here. |
 | **A phase that becomes TERMINAL in this commit with no completion date** | Closing a phase is the moment its date is known, and a phase closes rarely — so the rule costs almost nothing and the record keeps saying when the work ended. Prospective: a phase already terminal in the previous commit is left alone. The same rule on *tasks* is a warning, not a failure — see below. |
@@ -353,7 +354,10 @@ values include both `complete` and `completed`. All of that is tolerated.
 
 **A checker that enforced the template's shape would block commits in real projects and be switched
 off within a day** — which is worse than no checker. It fails only on things that lose data, plus
-the append-only and new-entry identity rules above.
+the append-only rule, the new-entry identity rule and the new-phase `operations` rule above. It also
+**warns**, never refuses, when a task becomes terminal in the commit without the `ops:` record
+`/update-progress` Step 7a asks for (estate notices left out): a task closes in nearly every
+commit, and the record is read as a rate, never as a gate.
 
 ## The three corruptions it was built from
 

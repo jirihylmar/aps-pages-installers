@@ -150,6 +150,12 @@ Identify:
 - AWS resources needed
 - Backend/frontend components
 - Dependencies between features
+- What keeps running once it is built, and how it is operated and rebuilt: the specification's
+  *Operations and Rebuild* section, or, where it has none, `PROJECT_CHARTER.md` § 8,
+  *Token-heavy development, token-light operation*
+- Each build, test and deploy step, where it runs and how long it is expected to take, and where AI
+  agents take part (`PROJECT_CHARTER.md` § 8, *What builds where, how long it takes, and where agents
+  take part*): a task whose verify runs a long step names that step's time and bound
 
 **Also read environment config** to use correct:
 - Naming conventions in verify steps
@@ -209,6 +215,10 @@ tasks/
 - `authored_by` and `assigned_to` - who wrote the entry and whose job it is, on every phase and
   every task (stable executor names, never a model version; `/add-work` § *Collect Work Details*).
   The commit guard (`/progress-check`) refuses new work that lacks either.
+- `operations` - on every phase: how what it builds runs without a session, which command says
+  whether it is healthy, and how a clean clone on another host rebuilds it; `none: <reason>` when it
+  builds nothing that keeps running (`PROJECT_CHARTER.md` § 8, *Token-heavy development,
+  token-light operation*). The commit guard refuses a new phase without it.
 
 **Recommended fields:**
 - `size` - small/medium (no large tasks!)
@@ -296,6 +306,9 @@ Add all generated tasks to progress.json:
     "phase_1_foundation": {
       "name": "Foundation",
       "status": "pending",
+      "authored_by": "Claude",
+      "assigned_to": "Claude",
+      "operations": "The stack deploys from a clean clone with scripts/deploy.sh; scripts/health.sh reads it and exits non-zero on a problem; the nightly import is an EventBridge schedule in the stack, never a session",
       "tasks": [
         {"id": "1.1", "name": "...", "status": "pending", "repo": "...", "size": "small", "verify": "..."},
         {"id": "1.2", "name": "...", "status": "pending", "repo": "...", "size": "small", "verify": "..."}
@@ -304,6 +317,9 @@ Add all generated tasks to progress.json:
     "phase_2_backend": {
       "name": "Backend",
       "status": "pending",
+      "authored_by": "Claude",
+      "assigned_to": "Claude",
+      "operations": "Phase 1's, extended: scripts/health.sh also calls each new endpoint; the rebuild path is unchanged",
       "tasks": [...]
     }
   },
@@ -324,6 +340,12 @@ Check:
 - [ ] Dependencies are correctly specified
 - [ ] Task order is logical
 - [ ] Naming conventions match environment config
+- [ ] Every phase carries `operations`, and the first phase that builds something that keeps
+      running has a task that fills the entry document's `## Operate and Rebuild` rows (the
+      `operations-check` skill checks them) and proves the rebuild: a fresh clone in an empty folder
+      on a host other than the one it was built on, given only the credentials and access
+      hyl-resources-manager issues, builds and deploys it by the documented path, or, where
+      deploying again is not safe, its deploy plan shows no change against the live system
 
 ### 10. Commit Phase Definitions
 
