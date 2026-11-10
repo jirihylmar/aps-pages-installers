@@ -273,7 +273,7 @@ here and there. but we need to distinguish sessions under orchestrator , ussuall
 eg"*. Asked whether that reaches every declared member, the operator left it to the engine (*"you
 have to know what the bast for management and sustainability"*), which ruled that it binds every
 member with no session to keep: a nested member, and a member checkout with no record of its own
-(§ 8), wherever it lies. mitt-sparks-build, beside mitt-sparks-orchestrator on vsb-rss, is one: the
+(§ 8), wherever it lies. mitt-sparks-build, beside mitt-sparks-orchestrator on vsb-157, is one: the
 operator had put it under the orchestrator on 2026-10-30 (*"everybody who needs somethig on sparks
 will need to go through them"*). A session works in a checkout and keeps a record, so a member that
 keeps a record of its own and whose checkout lies outside the manager's, often on another host, is
