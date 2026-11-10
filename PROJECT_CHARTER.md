@@ -25,6 +25,16 @@ verification, publication of recoverable state, and disposition of everything di
 the promised outcome is verified and recoverable. A report must not end with “done, but …” while
 leaving the consequence unowned.
 
+### The owner solves its own operations
+
+What a project needs from a third party or to run its own work (a question to a supplier, a VM, DNS,
+a deployment) is that project's own work, tracked in its own `progress.json`. It settles the matter
+with the operator directly. Once it has the result, it passes only that result to
+hyl-resources-manager through the mailbox (`/syndicate-request`), for execution: a route, an
+identity, a credential placed. An open question is not sent there to chase. What
+hyl-resources-manager already owns (§ 3) stays a question for it, and anything under the rule *Ask
+First Where Security Is at Stake; Otherwise Decide and Record* still waits for its answer.
+
 ## 3. Protect operator attention
 
 The operator supplies goals, business priorities, product and architectural decisions, risk
@@ -229,6 +239,17 @@ executor owns the combined result; delegation never delegates system consistency
 
 Reduce parallelism only for a named constraint such as dependency, unsafe shared state, production
 migration risk or resource quota. Complexity alone is not a reason to serialise independent work.
+
+**The size of the work follows the size of the request.** Set by the operator, 2026-11-10. This is
+judgment, and no check enforces it. A small change gets a direct check by the executor that made it:
+its tests, and one look at the result where the operator will meet it. Multi-agent reviews, fan-outs
+and workflows of verifiers are for work that is large or risky, or when the operator asks for them.
+A session setting that favours them does not make a small request a large one, and the paragraph
+above says how to run work already in scope, which is no reason to add any. When more seems worth
+doing, offer it in one line and let the operator choose. Why: a sort order on a dashboard and two new
+accounts were built and deployed when an executor started eight agents to verify them, while the
+sort itself was still wrong by the operator's reading. The operator: *"i asked for the small change,
+this is overkill"*.
 
 ### Sessions are told apart by theme
 
@@ -448,6 +469,15 @@ Retire a credential or access path only once every known consumer has moved and 
 disable it to see what breaks. A leaked one is revoked at once. A bulk irreversible change applies
 only the plan last generated against live state and read before applying, refuses if a fresh plan
 differs, and logs each action as it runs.
+
+### Storage must stay deletable
+
+Set by the operator, 2026-11-10. Never create cloud storage, or a retention on it, that nobody in the
+account can lift before it ends: S3 Object Lock in COMPLIANCE mode (a bucket default or on a single
+object), an S3 Glacier Vault Lock, an AWS Backup Vault Lock in compliance mode, or the equivalent
+elsewhere. A lock the account can lift (S3 Object Lock in GOVERNANCE mode, a legal hold, a Backup
+Vault Lock in governance mode) is allowed if the project records how it ends at the project's close.
+Why: a parked project keeps a resource in the account for eleven months because no one can remove it.
 
 ### Tool environments are built, not assembled in place
 

@@ -46,6 +46,8 @@ bash .claude/skills/syndicate-request/request.sh send \
 ```
 
 - `--to` is `syndicate-playbooks-examples` or `hyl-resources-manager`, nothing else.
+- **A request to hyl-resources-manager carries a settled result, not an open question for it to chase**
+  (`PROJECT_CHARTER.md` § 2, *The owner solves its own operations*).
 - `--title` is one line of at most 120 characters.
 - **The text comes on stdin, never on a command line.** Write it to a file first, at most 64 KiB of
   UTF-8 with no control characters. Write it for a cold reader: what you need, why, and what you

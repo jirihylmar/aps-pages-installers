@@ -1149,6 +1149,22 @@ with an UNBOUND item*):
 Unbound refs do not stop Task X.Y, so the Continue/Redirect question below is unchanged.
 `/update-progress` Step 9b refuses a session close while any item is still unbound.
 
+### 2.9a. What Is Left on This Machine (member hosts only; silent everywhere else)
+
+On a member host every project placed there shares the home folder's top, and `/tmp` is memory shared with the
+server's other users. Run from the project root; on any other host, and when there is nothing, this prints nothing:
+
+```bash
+if [ -f .claude/skills/server-report/leftovers.py ]; then
+  python3 .claude/skills/server-report/leftovers.py
+fi
+```
+
+- No output → omit from the handoff.
+- `LEFTOVERS: ...` → put the line under *⚠ Left on this machine*, verbatim. It reports only: it deletes nothing, never
+  fails the session, and does not say whose an entry is. The rule is in this machine's global instructions, *Temporary work
+  stays in the project's own place*.
+
 ### 3. Detect Project State
 
 #### If no `progress.json` exists:
@@ -1801,6 +1817,10 @@ or not an id. Report those lines; do not quietly fix `progress.json` here.
  checkpoint, and deleting unmerged work is irreversible, so it is recorded or asked about first.
  NOT CHECKED: name each repository and say its state is unknown, not clean. DID-NOT-RUN / NOT
  INSTALLED: say open pull requests and unmerged branches are unknown.]
+
+### ⚠ Left on this machine  (omit if Step 2.9a printed nothing)
+[The LEFTOVERS line of Step 2.9a, verbatim, one line; never summarised and never judged. It lists what is at the top of
+ the home folder that is not a git repository and this account's entries under /tmp, and it does not say whose an entry is.]
 
 ### ⚠ Delivered-defaults drift  (omit if Step 0.7 reported ok or n/a)
 [Name every DRIFTED / MISSING file verbatim from the Step 0.7 output. Do not revert anything

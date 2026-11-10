@@ -115,6 +115,18 @@ documentation was once wrong about its own code. Full evidence: `VERIFICATION-20
   Measured on: WSL2, an EC2 `t3.large`, and Docker containers with both private and host cgroup
   namespaces.
 
+## What is left on this machine (`leftovers.py`)
+
+A second, separate helper in this directory, run by `/start-session` Step 2.9a and `/update-progress` Step 9c:
+`python3 .claude/skills/server-report/leftovers.py`. On a member host (the machine whose `~/.claude/CLAUDE.md` or
+`~/.codex/AGENTS.md` opens with the heading `config/member-host/claude-global.md` gives it; never by a host name) it prints
+one `LEFTOVERS:` line: the non-dot entries at the top of the home folder that are not git repositories, and this account's
+entries directly under `/tmp`, each with a count and a few names, bounded by timeouts. Everywhere else, and when there is
+nothing, it prints nothing. It reports and nothing more: it deletes nothing, always exits 0, and does not say whose an
+entry is. The harness's and tmux's own per-account folders and the two tool caches every session leaves there are not
+counted (its docstring names them, as measured on 2026-11-10), so the line means something when it appears. Test:
+`scripts/test-session-leftovers.sh`.
+
 ## Related
 
 - **AWS account EC2 vCPU quotas** — a different question ("can this *account* launch another

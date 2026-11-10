@@ -39,7 +39,7 @@ contract is stated in the charter once, for both executors; this file only enfor
 Then invoke tools for X.Z in the same response.
 
 For `TASK_BOUNDARY`, run Steps 1, 2, 2a, 3, 3b, 3a when applicable, 4, 6–10, and the task-scoped
-portion of Step 5. Defer Step 2b, Step 3c, Step 9b, the full session handoff in Step 5, Step 11,
+portion of Step 5. Defer Step 2b, Step 3c, Step 9b, Step 9c, the full session handoff in Step 5, Step 11,
 and Step 12 until an actual `SESSION_CLOSE`. This keeps publication reliable without making every commit pay the
 cost—or adopt the stopping posture—of ending a session. The documentation steps are not that cost.
 Step 12's *Documentation swept* table waits for the close, so at a task boundary Step 7's result is
@@ -1195,6 +1195,20 @@ item can always be cleared in one edit. So it is reported, and Step 12 names it 
 **`TASK_BOUNDARY` skips this step.** It costs one network round per repository, and an unbound ref
 at a task boundary is still caught at the next close.
 
+### 9c. What is left on this machine (SESSION_CLOSE only; member hosts only; silent everywhere else)
+
+On a member host, one line for the report. On any other host, and when there is nothing, this prints nothing:
+
+```bash
+if [ -f .claude/skills/server-report/leftovers.py ]; then
+  python3 .claude/skills/server-report/leftovers.py
+fi
+```
+
+A `LEFTOVERS: ...` line goes into Step 12's *Left on this machine*, verbatim. It reports only: it deletes nothing, it never
+blocks the close, and it does not say whose an entry is. The rule is in this machine's global instructions, *Temporary work
+stays in the project's own place*. `TASK_BOUNDARY` skips this step.
+
 ### 10. Commit and Push Your Work (every repo you changed this session)
 
 Commit and **FF-push only the work YOU did this session — the repos and files you changed for your task, and nothing else.** This is Axis B (cross-checkout publication): other machines (the box, offline computers) only see your work once it reaches the shared origin, so leaving a repo you changed committed-but-unpushed is exactly the stale-checkout trap that `/start-session` Step 0 then has to skip on the next machine. It is distinct from the same-checkout Multi-Agent Discipline above.
@@ -1745,6 +1759,9 @@ task-boundary commit, takes it in `notes` instead: its verification is history
 - NOT CHECKED: <each repository, and its reason, verbatim> — its state is unknown, not clean
 (or "DID-NOT-RUN (exit N)" / "NOT INSTALLED": open pull requests and unmerged branches are unknown.
  Exit 3 never reaches this report: the close was refused until every item was bound or processed.)
+
+### Left on this machine (Step 9c)
+[The LEFTOVERS line of Step 9c, verbatim. Omit this heading when Step 9c printed nothing.]
 
 ### Open Work (rendered mechanically — run it, do not compose it)
 
