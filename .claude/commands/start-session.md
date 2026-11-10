@@ -1820,7 +1820,9 @@ or not an id. Report those lines; do not quietly fix `progress.json` here.
 
 ### ⚠ Left on this machine  (omit if Step 2.9a printed nothing)
 [The LEFTOVERS line of Step 2.9a, verbatim, one line; never summarised and never judged. It lists what is at the top of
- the home folder that is not a git repository and this account's entries under /tmp, and it does not say whose an entry is.]
+ the home folder that is not a git repository, this account's entries under /tmp, and the size of the session
+ scratchpads under /tmp/claude-<uid> once they pass 300 MB or keep an old folder of another session; it does not say
+ whose an entry is.]
 
 ### ⚠ Delivered-defaults drift  (omit if Step 0.7 reported ok or n/a)
 [Name every DRIFTED / MISSING file verbatim from the Step 0.7 output. Do not revert anything

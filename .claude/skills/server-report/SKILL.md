@@ -122,9 +122,20 @@ A second, separate helper in this directory, run by `/start-session` Step 2.9a a
 `~/.codex/AGENTS.md` opens with the heading `config/member-host/claude-global.md` gives it; never by a host name) it prints
 one `LEFTOVERS:` line: the non-dot entries at the top of the home folder that are not git repositories, and this account's
 entries directly under `/tmp`, each with a count and a few names, bounded by timeouts. Everywhere else, and when there is
-nothing, it prints nothing. It reports and nothing more: it deletes nothing, always exits 0, and does not say whose an
-entry is. The harness's and tmux's own per-account folders and the two tool caches every session leaves there are not
-counted (its docstring names them, as measured on 2026-11-10), so the line means something when it appears. Test:
+nothing, it prints nothing. It reports and nothing more: it deletes nothing, always exits 0 (with stdout closed, and with a
+`LEFTOVERS_*` setting that is not a number, which falls back to its default), and does not say whose an entry is. The
+harness's and tmux's own per-account folders and the two tool caches every session leaves there are not in that list (its
+docstring names them, as measured on 2026-11-10), so the line means something when it appears.
+
+The line also measures this account's session scratchpads, which the harness keeps under `/tmp/claude-<uid>` (one folder
+per session, `<project folder>/<session id>/`) and leaves behind when a session ends; old clones there filled
+nutritech-pdsm-orchestrator's `/tmp` quota with 9.5 GB. It reads, for example,
+`/tmp/claude-1001 session scratchpads: 412 MB, 3 folders of other sessions over 1 MB untouched for a day`: the size of
+everything under `/tmp/claude-<uid>`, and, when the environment names the session (`CLAUDE_CODE_SESSION_ID`), how many
+folders of other sessions hold over 1 MB with nothing in them changed for 24 hours and their session's transcript as
+quiet. It appears only when the total is over 300 MB or such a folder exists, so a normal session stays silent: the other
+projects' live sessions are not old, and the empty folders ended sessions leave hold nothing. Without the session id (a
+Codex session, for one) it gives the total alone, over 300 MB. It names no folder. Test:
 `scripts/test-session-leftovers.sh`.
 
 ## Related
