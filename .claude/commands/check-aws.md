@@ -241,7 +241,7 @@ files**, with this one local command (run it with Bash on this host, never throu
 connection):
 
 ```bash
-grep -aHoE '^\[[^][:cntrl:]]*\]' ~/.aws/config ~/.aws/credentials
+grep -aHoE -d read '^\[[^][:cntrl:]]*\]' ~/.aws/config ~/.aws/credentials
 ```
 
 Each output line is `<file>:[<header>]` and nothing more: `-o` prints only the bracketed header,
@@ -249,16 +249,21 @@ never the rest of its line, and the pattern matches only a header that starts it
 indented continuation value cannot match (an indented header is not listed either — if a profile
 you expect is missing, say so in the report). `-a` keeps a file with a stray binary byte from being
 skipped without a word; it widens nothing, because `-o` and the bracket class still stop at `]`.
+`-d read` makes a directory in place of either file an error line under GNU grep and under ugrep
+alike. In a Claude Code session `grep` is a shell function that runs the embedded ugrep, which
+without it says nothing for an empty directory and searches the files inside a full one (measured
+2026-11-12, ugrep 7.8.4).
 Take the names per file:
 
 - from `…/config`: `[default]` is the profile `default`, `[profile <name>]` is the profile `<name>`,
   and any other section (`[sso-session …]`, `[services …]`) is not a profile;
 - from `…/credentials`: every `[<name>]` is the profile `<name>`, exactly as written.
 
-Use the union. **Decide by the error lines, not the exit code** — grep exits 2 whenever it reports
-one. `No such file` for a file means that file holds no profiles; use the other file's headers. Any
-other error for a file (`Permission denied`, `cannot read`, `Is a directory`, `binary file matches`),
-or an output path *below* `…/config/` or `…/credentials/`, means that file was **not listed** — and
+Use the union. **Decide by the error lines, not the exit code** — GNU grep exits 2 whenever it
+reports one, and ugrep does not for a directory. `No such file` for a file means that file holds no
+profiles; use the other file's headers. Any other error for a file (`Permission denied`,
+`cannot read`, `Is a directory`, ugrep's `is a directory`, `binary file matches`), or an output path
+*below* `…/config/` or `…/credentials/`, means that file was **not listed** — and
 the connection may still read it (one launched without `--user` runs as the image's root). Probe the
 names you have; if none reaches the account, the gap is *could not look* (below), never *no profile
 reaches it*. The listing reads `~/.aws` because that is what this estate's AWS connections read, in
@@ -285,14 +290,21 @@ what the connection sees, so do not follow one.
 >
 > `aws-docs` and `aws-iac` mount nothing of the host. Before concluding from an error that depends
 > on which, print that server's two flags from its entry in `~/.claude.json` (`mcpServers`, at the
-> top level or under this project) and nothing else of it, with this one local command. Never print
-> its `env`, or another server's entry, which may hold a token:
+> top level for `user` or under this project for `local`) or in this project's `.mcp.json`
+> (`project`), and nothing else of it, with this one local command. The scope is the one the
+> declared-server listing above prints. Never print its `env`, or another server's entry, which may
+> hold a token:
 >
 > ```bash
 > python3 -I -c 'import json, os
 > d = json.load(open(os.path.expanduser("~/.claude.json")))
 > here = (d.get("projects") or {}).get(os.getcwd()) or {}
-> for scope, servers in (("user", d.get("mcpServers") or {}), ("project", here.get("mcpServers") or {})):
+> try: mcp = json.load(open(".mcp.json"))
+> except FileNotFoundError: mcp = {}
+> except Exception as e: mcp = {}; print("UNREAD .mcp.json (%s): no project-scope server is listed" % type(e).__name__)
+> mcp = mcp if isinstance(mcp, dict) else {}
+> for scope, servers in (("user", d.get("mcpServers") or {}), ("local", here.get("mcpServers") or {}),
+>                        ("project", mcp.get("mcpServers") or {})):
 >     for name, s in servers.items():
 >         a = [str(x) for x in s.get("args") or []]
 >         f = [a[i] + " " + a[i + 1] for i in range(len(a) - 1) if a[i] in ("--user", "-u", "-v", "--volume")]
@@ -313,7 +325,7 @@ what the connection sees, so do not follow one.
 >
 > ```bash
 > python3 -I - <<'PY'
-> import calendar, json, os, subprocess, sys, time
+> import json, os, subprocess, sys
 > def stat(pid):
 >     s = open("/proc/%d/stat" % pid).read()
 >     f = s[s.rindex(")") + 2:].split()
@@ -344,41 +356,61 @@ what the connection sees, so do not follow one.
 >     except (OSError, ValueError):
 >         continue
 >     kids.setdefault(ppid, []).append(int(d)); procs[int(d)] = (comm, start)
-> boot = int(next(l.split()[1] for l in open("/proc/stat") if l.startswith("btime")))
-> todo, clients = [agent], []
+> todo, clients = [agent], []              # (seconds since boot it started, is it a docker run)
 > while todo:
 >     for c in kids.get(todo.pop(), []):
 >         todo.append(c)
 >         if procs[c][0] == "docker":
->             clients.append(boot + procs[c][1] / os.sysconf("SC_CLK_TCK"))
+>             try:                         # its subcommand word only; nothing of it is printed
+>                 argv = open("/proc/%d/cmdline" % c, "rb").read().split(b"\0")
+>             except OSError:
+>                 argv = []
+>             clients.append((procs[c][1] / os.sysconf("SC_CLK_TCK"), b"run" in argv[1:3]))
 > ids = docker(["ps", "-q"]).split()
 > fmt = "{{json .Name}}\t{{json .State.StartedAt}}\t{{json .Mounts}}"
 > out = docker(["inspect", "--format", fmt] + ids) if ids else ""
-> home, mine = os.path.expanduser("~"), 0
-> for line in out.splitlines():
+> home, mine, paired = os.path.expanduser("~"), 0, set()
+> for line in out.splitlines() if clients else []:
 >     name, started, mounts = (json.loads(x) for x in line.split("\t"))
->     t = calendar.timegm(time.strptime(started[:19], "%Y-%m-%dT%H:%M:%S"))
->     if not any(-5 <= t - c <= 60 for c in clients):
+>     ages = docker(["top", name.lstrip("/"), "-o", "pid,etimes"]).splitlines()[1:]
+>     try:                                 # its start on the same clock: now since boot, less its age
+>         born = float(open("/proc/uptime").read().split()[0]) - max(int(r.split()[1]) for r in ages)
+>     except (ValueError, IndexError):
+>         not_checked("docker top gave no age for %s" % name.lstrip("/"))
+>     near = [i for i, (c, run) in enumerate(clients) if -5 <= born - c <= 60]
+>     if not near:
 >         continue
->     mine += 1
+>     paired.update(near); mine += 1
 >     m = mounts or []
 >     print(name.lstrip("/"), "started", started[:19] + "Z:", "; ".join("%s -> %s %s" % (x.get("Source"), x.get("Destination"),
 >           "rw" if x.get("RW") else "ro") for x in m) or "no mounts",
 >           "<- MOUNTS A HOME FOLDER" if any(x.get("Source") in (home, "/", "/home") for x in m) else "")
+> lost = sum(1 for i, (c, run) in enumerate(clients) if run and i not in paired)
+> if lost:
+>     print("NOT CHECKED: %d docker run client(s) of this session paired with no running container;"
+>           " the lines above are this session's, the rest unknown, not none" % lost)
+>     sys.exit(3)
 > print("%d running container(s) of this session (pid %d)" % (mine, agent))
 > PY
 > ```
 >
 > A container is this session's when the session started its `docker` client within a minute of the
-> container's start. A line marked `MOUNTS A HOME FOLDER` is a server that can read the whole home
+> container's start, both read on the kernel's clock: the client's start from `/proc`, the
+> container's age from `docker top` (its `pid,etimes` columns and nothing else). Never by wall-clock
+> times: a process's start dated from `/proc` drifts from the wall clock wherever the kernel's clock
+> stops while the machine sleeps, as WSL2's does (measured 2026-11-12 on the workstation: 283 s for a
+> session three hours old, 2,791 s for one a day old, so every container read as another session's).
+> A line marked `MOUNTS A HOME FOLDER` is a server that can read the whole home
 > until this session restarts, whatever its definition says now; say so in the report rather than
 > concluding from the definition. `0 running container(s)` means none of this session's servers runs
 > in a container (an HTTP server, or none started), and it is printed only after `docker ps` and
-> `docker inspect` both succeeded. `NOT CHECKED` (exit 3) means the command could not look: `docker`
-> did not run or exited with an error, or no `claude` or `codex` process sits above the command, so
-> no container can be told to be this session's. Then this session's containers are unknown: report
-> them as not checked, never as none or as a count, and never take every container on the host as
-> this session's.
+> `docker inspect` both succeeded and every `docker run` client of this session was paired with a
+> container. `NOT CHECKED` (exit 3) means the command could not look: `docker` did not run or exited
+> with an error, `docker top` gave no age, no `claude` or `codex` process sits above the command, so
+> no container can be told to be this session's, or a `docker run` client of this session paired with
+> no running container (the lines printed before it are this session's). Then this session's
+> containers are unknown, or those beyond the lines printed: report them as not checked, never as
+> none or as a count, and never take every container on the host as this session's.
 
 > **This command is the only way this step touches either file.** Do not view, page, print, parse or
 > copy them any other way — not with Read, `cat`, `less`, `head`, `tail`, `sed`, `awk`, `rg`, `nl`, a

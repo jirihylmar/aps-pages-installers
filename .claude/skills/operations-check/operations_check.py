@@ -222,7 +222,8 @@ def refs_of(value):
         ref = None
         rm = REF_RE.match(value, sm.end())
         if rm:
-            ref = rm.group(1).strip().strip("*_").strip().rstrip(".").strip() or None
+            # A trailing period is dropped on both sides of the emphasis: _Heading_. and *Heading.* alike.
+            ref = rm.group(1).strip().rstrip(".").strip().strip("*_").strip().rstrip(".").strip() or None
         out.append((c, ref))
     return out
 

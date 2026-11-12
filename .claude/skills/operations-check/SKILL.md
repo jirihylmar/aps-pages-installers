@@ -204,7 +204,8 @@ counts, and `since`), `findings` (each with `kind`, one of `missing-path`, `miss
 - **`/update-progress` Step 7a**, after a task that touched something that runs: the task fills
   that part's rows with what it established, then runs the checker and corrects any row it reports
   `MISSING-PATH` or `HOST-PATH`.
-- **`/repo-hygiene`** reports the verdict and the counts. It never creates work from them.
+- **`/repo-hygiene`** runs it once and gives the verdict in its pass report. It corrects a row the
+  checker reports `MISSING-PATH` or `HOST-PATH`, and never opens work for the rest.
 - **The estate baseline** reads every project's origin `HEAD`, not the checkouts on the hosts:
 
   ```bash
@@ -225,7 +226,8 @@ counts, and `since`), `findings` (each with `kind`, one of `missing-path`, `miss
 - **It never proves a rebuild.** A rebuild path is evidence only once a clean clone has followed
   it (`PROJECT_CHARTER.md` § 10, *Verify reality*). A row that names `REBUILD.md` says the
   document exists, nothing more.
-- **It never creates work, sends a notice or writes a file.** It reads git and two files.
+- **It never creates work, sends a notice or writes a file.** It reads git: the entry documents,
+  `progress.json`, and the `.md` files a row cites by heading.
 - **An existing project without the section is in a counted state, not in defect.** An existing
   system is not refactored to comply; a task that touches a running part fills that part's rows.
   `no-section` and `partial` are exit `3` for that reason, and only a false claim is exit `1`.
