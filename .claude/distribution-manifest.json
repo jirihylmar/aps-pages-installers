@@ -1,11 +1,11 @@
 {
   "_comment": "Written by /distribute-defaults. Proves the engine delivered these exact bytes. /repo-hygiene reads this BEFORE classifying any default as hand-edited. A hash match here means DELIVERED, whatever the git state. Never edit by hand.",
-  "written_at": "2026-11-11T15:51:17Z",
-  "canonical_commit": "66c2f8322577a5ca5dc9ba8695c570cd5844b53b",
+  "written_at": "2026-11-12T15:27:29Z",
+  "canonical_commit": "d3c4d50ddc34dfd8a29373c4684f05f2591d4c2c",
   "files": {
     ".claude/commands/add-work.md": { "sha256": "3e7d658c5e1d2298f97e0d35c2ed1a04e7ee696d8097390c3ce0c1ed5082284e", "source": "canonical" },
     ".claude/commands/check-aws.md": { "sha256": "995e08edeb24e667da70f4964657cb7d493de367cc6c5f6319ca406fb52c7498", "source": "canonical" },
-    ".claude/commands/generate-architecture.md": { "sha256": "a62a44a8a2881d32feef531cc55ae5ca686c2471b1d32fd8e5db86acb85dba25", "source": "canonical" },
+    ".claude/commands/generate-architecture.md": { "sha256": "412d4b0f914be9999661323cd48262fbccc8c7af48d3cbf7d73ff1a53a5b471a", "source": "canonical" },
     ".claude/commands/generate-phases.md": { "sha256": "bc055eee0f91dd9fdcd77362afc4af69a7646b89d64c0996165b447277e724c0", "source": "canonical" },
     ".claude/commands/repo-hygiene.md": { "sha256": "c06b32086c47e5fbca3fefe239f689604f98de20e35a8c4087fd8b9eaa7ebe8e", "source": "canonical" },
     ".claude/commands/syndicate-refresh-remote.md": { "sha256": "ae9e39e14a93761e8d1ddf92c6dfbdf66510e328d8ecb3e10a6f0af7446315e0", "source": "canonical" },
@@ -71,7 +71,7 @@
     ".agents/skills/operational-mail/SKILL.md": { "sha256": "0b725880a4c355480375cf6635a7061767cf920ce3f538b3e9307379881dd9f1", "source": "canonical" },
     ".agents/skills/naming-conventions/SKILL.md": { "sha256": "7ea8aeb02a2f6a6f866b66dd5d32200015f5d86fbcaaff03787d26cc1a8cac79", "source": "canonical" },
     ".agents/skills/generate-phases/SKILL.md": { "sha256": "65e9cece4de5a2416c79eee8b392242c550f16b0d7a2dfb2bdccf64b8f8ff00c", "source": "canonical" },
-    "PROJECT_CHARTER.md": { "sha256": "bb8510ed8489d868b6eb4dbe7ff783a22dd10e1bb2f285b0e125cbe498d89b2c", "source": "canonical" },
+    "PROJECT_CHARTER.md": { "sha256": "792aac90d2bb2b850e80424606648a9b3467e26fa954bca063a9ea0e23715c77", "source": "canonical" },
     ".claude/hooks/pre-commit": { "sha256": "dc9e925f79bd7dde8103fbc6ec299bff8aecc15b13c28163ed682089b90c5b89", "source": "canonical" }
   }
 }

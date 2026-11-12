@@ -931,3 +931,23 @@ requests and the branches not merged into a base branch, in this repository and 
 block declares, with the `refs-check` skill. Before a session closes, each one is bound to open work
 by its ref and SHA, or processed. A member that cannot be read is reported as not checked, never as
 clean.
+
+### A governed member's README names its manager
+
+Someone who opens a governed member where its repository is hosted, and finds no word of its
+manager there, cannot tell who writes or deploys it or where its procedures are. So the `README.md`
+of a member its manager's `relations` block declares `governed` opens, right after its title, with a
+short block that:
+
+- names its manager by the manager's origin;
+- says whose sessions write and deploy it: its own, or the manager's;
+- links to where its procedures and design live (the manager's skills and design documents for it,
+  and the family's overview) and to its own documents.
+
+The block tells a reader where to go and declares nothing: a member's record still never names its
+manager, and the manager's `relations` block stays the only statement of who directs whom. A member
+that keeps a record of its own writes the block itself; for one that keeps none, the manager's
+sessions write it. The manager draws the family's overview and each governed member draws its own
+architecture views (`/generate-architecture`, *In a managed family*). The centre's estate survey
+reads the first 40 lines of each governed member's README and warns where they do not name the
+manager.

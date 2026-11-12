@@ -63,6 +63,25 @@ permission between two functions) unless it is the point of the view.
 
 ---
 
+## In a managed family
+
+Where `progress.json` declares members in its `relations` block (`PROJECT_CHARTER.md`, *Declare
+what this repository manages*), the views are split by repository:
+
+- **The managing project's overview shows the family:** each governed member is one box (`part()`),
+  and the overview's section of `docs/architecture/README.md` links that member's own
+  `docs/architecture/README.md`. The manager draws no member's parts.
+- **Each governed member draws its own views**, in its own repository, from its own code: this
+  command, run in that member's checkout by the session that works in it (its own, or the manager's
+  session of the theme that writes that member).
+- **A member with no repository of its own** (a directory of the manager's tree) is drawn in the
+  manager's views, like any other part.
+
+A governed member's README opens with the block naming its manager (`PROJECT_CHARTER.md`, *A
+governed member's README names its manager*); its Architecture section (Step 7) follows that block.
+
+---
+
 ## Prerequisites
 
 The generator needs the Python package `diagrams` and Graphviz (`dot`); the flow chart and the swim
