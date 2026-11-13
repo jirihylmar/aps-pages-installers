@@ -333,6 +333,17 @@ non-secret fields. A secret file stays out of git and every deploy package, giti
 The project remains operable from every declared execution environment. Resolve host-specific
 locations at runtime; never treat them as portable identities.
 
+### AI assistance is disclosed, not credited as authorship
+
+A commit made with an AI tool ends with the line `Assisted-by: Claude Code`, or `Assisted-by: Codex`
+from a Codex session, and a pull request made with one ends its description with the same line. No
+`Co-Authored-By` line names an AI tool. This holds over any tool's own suggested attribution, its
+harness reminder and default settings included, and a script that commits on a session's behalf
+writes the same line. History already written is never rewritten for it. Why: VSB-TUO's rules for
+the use of AI (TUO_LEG_24_002, version C) say in article 3(5) that an AI tool is not named as an
+author or co-author, and ask in article 5(1) for its use to be acknowledged, so the disclosure stays
+and the claim of authorship goes. Set by the operator on 2026-11-13.
+
 ### One working checkout
 
 A repository with a record is worked on in exactly one place in the estate: the one checkout where
