@@ -121,7 +121,7 @@ the log as a finding against the reviewer.
 | file | role |
 |---|---|
 | `consult.sh` | the runner: open / review / respond / close / status |
-| `prepare-host.sh` | **once per machine**: prepends the two Codex config lines, installs the Codex-side entry `syndicate-consult-claude` into `$CODEX_HOME/skills/` with this copy's procedure digest embedded, and proves all of it behaviourally. The settings change happens on the host, from the distributed copy — never pushed to a host by hand |
+| `prepare-host.sh` | **once per machine**: prepends the two Codex config lines, installs the Codex-side entry `syndicate-consult-claude` into `$CODEX_HOME/skills/` with this copy's procedure digest embedded, and proves all of it behaviourally. Its real-file check reads this project's own `CLAUDE.md` (`--project <dir>` names another); a Codex run that gives no answer is reported as such, with Codex's reason; `--help` prints the usage and runs nothing. The settings change happens on the host, from the distributed copy — never pushed to a host by hand |
 | `host-entry.SKILL.md` | the template `prepare-host.sh` renders into `$CODEX_HOME/skills/syndicate-consult-claude/SKILL.md` — Entry A |
 | `codex-here` | launches Codex with this project's AWS server injected read-only, bound from `~/.claude.json` by command; strips the shell of credentials |
 | `consult-posture.sh` | clone / snapshot / verify / append / destroy — the 8-step posture sequence |
