@@ -1,6 +1,6 @@
 ---
 name: syndicate-request
-description: Hand a request to syndicate-playbooks-examples (the estate's engine) or hyl-resources-manager (accounts, hosts, access rules) from any host, through the one mailbox repository, when their sessions cannot be reached from here, and read the answer once it is closed - and, in those two projects, list, read and close the requests addressed to them. Invoke when this project needs something only one of those two can do (a rule amended, a grant, a change to the distributed defaults) and there is no way to message their session; at session start while a request this project sent is waiting for its answer; or, in a receiving project, at session start and when closing a request.
+description: Hand a request to syndicate-playbooks-examples (the estate's engine) or hyl-resources-manager (accounts, hosts, access rules) from any host, through the one mailbox repository, when their sessions cannot be reached from here, and read the answer once it is closed - and, in those two projects, list, read and close the requests addressed to them. A message for any other project goes to the engine the same way, and the engine passes it on word for word. Invoke when this project needs something only one of those two can do (a rule amended, a grant, a change to the distributed defaults) and there is no way to message their session; when it has a message for another project, or answers one the engine passed on; at session start while a request this project sent is waiting for its answer; or, in a receiving project, at session start and when closing a request.
 ---
 
 # syndicate-request
@@ -103,6 +103,25 @@ session start or the next turn of the watch.
 Measured 2026-10-31: hyl-resources-manager answered nutritech-pdsm-orchestrator's request only in
 its close outcome. pdsm's session watched only its own `session_notes.md`, and waited 12 hours while
 the answer sat on `main`.
+
+## A message for another project
+
+`--to` takes only the two receivers, and a peer message reaches only a live session. A message for
+any other project goes through the engine. This relay already exists:
+
+- **Send it to syndicate-playbooks-examples** (`--to syndicate-playbooks-examples`). Name the project
+  it is for, and put the message in a section of its own, written for that project as a cold reader.
+- **The engine passes it on word for word**, on the operator's word in its session, as one task in
+  that project's own `progress.json` (an estate notice). The task names who sent it and the request's
+  branch. The close outcome of your request says where the message went.
+- **The answer comes back the same way.** The receiving project sends a request to
+  syndicate-playbooks-examples, and the engine passes it on as a task in the sender's record.
+- **Projects do not route messages to each other through the operator.** There is no other route
+  between projects, and `--to` stays the two receivers.
+
+The operator, in the engine's session on 2026-11-17, when mitt-sparks-orchestrator asked for a
+direct route between projects:
+*"what do you mean its already in place. i want them to use existing rellay"*.
 
 ## Receiving (syndicate-playbooks-examples and hyl-resources-manager only)
 
