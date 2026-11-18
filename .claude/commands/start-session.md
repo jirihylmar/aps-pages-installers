@@ -2006,7 +2006,7 @@ done, and say in the Step 9 report that the figure is an estimate.
 > Management, which at a *lower* threshold (>60%) says to commit and push all repos. The two rows
 > were reachable together and instructed opposite things, and the unsafe one governed the case where
 > there is least context left to notice. Found by the `/update-progress` Step 2b consolidation slice
-> on 2026-08-26, grounding `docs/future-ideas.md` — which had flagged the contradiction on
+> on 2026-08-26, grounding the engine's own `docs/future-ideas.md` (a file a project need not keep) — which had flagged the contradiction on
 > 2026-07-14 and marked it *"worth fixing independently"*; nothing owned it, so it survived six weeks.
 
 ### 8. Check Git Repo Status

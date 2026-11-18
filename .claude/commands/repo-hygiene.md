@@ -145,9 +145,11 @@ for d in sorted((root/"docs").glob("*")) if (root/"docs").exists() else []:
 # The lookbehind refuses every character that puts a `docs/` inside some other path. `-` above
 # all: another repository's `reports/handover-docs/X.md` was cut at the hyphen and reported missing
 # from THIS project's docs/ (3 of 9 findings in one project's pass, 2026-10-07, every one false).
-# `.`, `~` and `$` go with it, the set the engine's own path checks use. A real ref is preceded by
-# a backtick, a space, a parenthesis or the start of a line.
-ref_re = re.compile(r"(?<![\w/~.$-])(docs/[A-Za-z0-9_\-./]+\.(?:md|tsv|json|py|png|html))")
+# `.`, `~` and `$` go with it, the set the engine's own path checks use. `:` too: in
+# `git show <ref>:docs/X.md` the path lives behind the ref, not in the working tree, and that is
+# the point of the command (cad-designer, 2026-11-18). A real ref is preceded by a backtick, a
+# space, a parenthesis or the start of a line.
+ref_re = re.compile(r"(?<![\w/~.$:-])(docs/[A-Za-z0-9_\-./]+\.(?:md|tsv|json|py|png|html))")
 # The live-surface set must be every file a reader takes as CURRENT — see
 # /update-progress Step 2b. Restricting it to docs/ + .claude/commands/ silently
 # excluded README.md, CLAUDE.md and every ops/ runbook, which is how one project's
@@ -1036,7 +1038,7 @@ together with the shrunk progress.json.
 
 **Resolving an archived body.** The pointer names a task slot, not a field, so this prints every
 body archived for that task and you read the one you want:
-`python3 -c "import json,sys;p=sys.argv[1].split('#');d=json.load(open(p[0].split(' ',1)[1]))[p[1]];[print('---',k,'---',v,sep='\n') for k,v in d.items()]" "archived: docs/_archive/progress-sidecars/phase_12.json#12.3"`
+`python3 -c "import json,sys;p=sys.argv[1].split('#');d=json.load(open(p[0].split(' ',1)[1]))[p[1]];[print('---',k,'---',v,sep='\n') for k,v in d.items()]" "archived: docs/_archive/progress-sidecars/phase_12_consolidation.json#12.3"` (a sidecar is named after its phase key, here `phase_12_consolidation`)
 
 **No pre-compact copy is written when git already holds the pre-state** — tracked and unmodified is
 the normal case at a hygiene pass, and the run tells you the sha to recover from. A copy is written
