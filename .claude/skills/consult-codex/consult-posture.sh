@@ -42,15 +42,63 @@ set -u
 LOG=consult_notes.md
 die(){ echo "consult-posture: $*" >&2; exit 2; }
 
-fp_tree(){  # $1=dir -> fingerprint of EVERY path under the tree, .git INCLUDED: git view + type/mode/size/link + content hash
-  local d="$1"
+# NESTED WORKING TREES: the one thing the REAL tree's fingerprint does not enter (2026-11-17).
+#
+# cad-designer keeps its agents' lanes as git worktrees nested in its own checkout, at vetve/<label>/
+# (git-ignored, about 107 MB each; its mailbox request of 2026-11-17, "consult-posture.sh: prune
+# nested worktrees in fp_tree"). fp_tree walked into every one: `find` listed each lane's files and
+# `sha256sum` read each lane's full copy at every snapshot, verify and append, and a lane writing
+# during a consult, which is its own agent's work and nothing the reviewer did, showed as real-tree
+# motion in the round record. Measured on 2026-11-18 on the engine's own checkout, which holds seven
+# worktrees under .claude/worktrees/ (12 MB each) and the nested product repository
+# syndicate-dashboard/ (1.1 GB): the real fingerprint read 1.27 GB in 7.8 s on a cold cache (0.8 s
+# warm) and wrote 76,172 lines, 8,176 of them inside .claude/worktrees/. Listing the eight nested
+# trees instead of entering them: 132 MB (116 MB of it the root's .git), 7,748 lines, 0.14 s.
+#
+# So in the REAL tree a subfolder, never the root, that holds a `.git` file or directory (a linked
+# worktree, a submodule, an independent clone) is listed once by name as `nested` and not entered.
+# What the guarantee rests on is unchanged:
+#   - motion in the real tree is recorded, never refused (the ownership rule, § verify), and what
+#     moves inside a nested tree belongs to that tree's own git, not to this checkout;
+#   - the root's own .git is fingerprinted as before, so a linked worktree's commits, staging and
+#     refs (.git/worktrees/<name>/, objects, refs) still move this fingerprint;
+#   - a nested tree appearing or disappearing, and a folder turning into one, is recorded by name;
+#   - the paths the skill OWNS are never skipped: .claude, .claude/hooks and anything under it are
+#     not nested roots whatever they hold, and nothing under the root's .git is ever considered.
+# What it gives up, deliberately: a write inside a nested tree that existed at snapshot is not
+# recorded, including a commit in an independent nested clone, whose objects are its own.
+# The CLONE is never pruned (the scope defaults to clone, so a caller that forgets it checks more,
+# never less): the clone is the skill's own tree, and a skip keyed on a .git entry would let a
+# reviewer hide a write by planting one in any folder of it.
+# Cheap by construction: one more `find` pass, which reads names and never hashes (it cannot skip a
+# folder before it has seen the .git inside, so it still walks the nested trees' names: 36 ms over
+# about 28,000 entries here), and one `-path` per top-most nested root in the two passes that follow.
+# No process per directory.
+nested_roots(){  # run INSIDE the real tree -> NUL-separated `find -path` patterns (glob-escaped, no ./) of the top-most nested roots
+  local p k kept=()
+  while IFS= read -r -d '' p; do
+    p="${p#./}"
+    case "$p" in ''|.|.git|.git/*|.claude|.claude/hooks|.claude/hooks/*) continue;; esac
+    # sorted, so an ancestor comes before everything under it: one pattern per top-most root
+    for k in ${kept[@]+"${kept[@]}"}; do [[ "$p" == "$k"/* ]] && continue 2; done
+    kept+=( "$p" ); printf '%s\0' "$p"
+  done < <(find . -mindepth 1 \( -path ./.git -prune \) -o \( -name .git -printf '%h\0' -prune \) 2>/dev/null | LC_ALL=C sort -zu) \
+  | sed -z 's/[][*?\\]/\\&/g'   # -path takes a glob: a root named w[1]* must not also skip w1
+}
+fp_tree(){  # $1=dir [$2=real] -> fingerprint of EVERY path under the tree, .git INCLUDED: git view + type/mode/size/link + content hash
+            # $2=real lists nested working trees and sub-repositories by name without entering them (above); without it NOTHING is skipped
+  local d="$1" scope="${2:-clone}"
   ( cd "$d" 2>/dev/null || { echo "TREE UNREADABLE $d"; exit 9; }
+    skip=( -false )
+    if [ "$scope" = real ]; then
+      while IFS= read -r -d '' p; do skip+=( -o -path "./$p" ); done < <(nested_roots)
+    fi
     echo "HEAD $(git rev-parse HEAD 2>/dev/null)"
     git for-each-ref --format='%(refname) %(objectname)' 2>&1 || echo "REFS FAILED"
     git status --porcelain --ignored --untracked-files=all 2>&1 || echo "STATUS FAILED"
     git stash list 2>&1
-    find . -mindepth 1 ! -path './.git/index.lock' -printf '%y %m %s %P -> %l\n' 2>&1 | LC_ALL=C sort
-    find . -type f ! -path './.git/index.lock' -print0 2>/dev/null | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>&1
+    find . -mindepth 1 \( "${skip[@]}" \) -printf '%y %m nested %P -> %l\n' -prune -o ! -path './.git/index.lock' -printf '%y %m %s %P -> %l\n' 2>&1 | LC_ALL=C sort
+    find . \( "${skip[@]}" \) -prune -o -type f ! -path './.git/index.lock' -print0 2>/dev/null | LC_ALL=C sort -z | xargs -0 -r sha256sum 2>&1
     [ -f "$LOG" ] && echo "LOG $(sha256sum "$LOG" | cut -d' ' -f1) $(wc -c < "$LOG")" || echo "LOG absent" )
 }
 # OWNED PATHS INSIDE A TREE THE SKILL DOES NOT OWN.
@@ -119,7 +167,7 @@ case "${1:-}" in
     # defect as `refresh` had; found by the reviewer in cycle 20260825-170103-b72153b, which noticed
     # the fix had been applied to one of the two and not the other.
     REAL="${2:?}"; CL="${3:?}"; ST="${4:?state dir}"; mkdir -p "$ST" || die "cannot create $ST"
-    fp_tree "$REAL" > "$ST/real.fp"  || die "cannot write $ST/real.fp"
+    fp_tree "$REAL" real > "$ST/real.fp"  || die "cannot write $ST/real.fp"
     fp_tree "$CL"   > "$ST/clone.fp" || die "cannot write $ST/clone.fp"
     echo "snapshot: real $(wc -l < "$ST/real.fp") lines, clone $(wc -l < "$ST/clone.fp") lines, digest $(cat "$ST/real.fp" "$ST/clone.fp" | sha256sum | cut -c1-16)";;
   verify)
@@ -152,7 +200,7 @@ case "${1:-}" in
     REAL="${2:?}"; CL="${3:?}"; ST="${4:?}"
     if ! diff <(fp_tree "$CL") "$ST/clone.fp" > "$ST/clone.diff"; then
       echo "DRIFT in clone tree:"; sed 's/^/   /' "$ST/clone.diff" | head -40; exit 2; fi
-    if [ -f "$ST/real.fp" ] && ! diff <(fp_tree "$REAL") "$ST/real.fp" > "$ST/real.diff"; then
+    if [ -f "$ST/real.fp" ] && ! diff <(fp_tree "$REAL" real) "$ST/real.fp" > "$ST/real.diff"; then
       if owned_drift "$ST/real.diff"; then
         echo "DRIFT in a path the skill OWNS inside the real checkout:"; sed 's/^/   /' "$ST/real.diff" | head -40; exit 2; fi
       echo "posture: clean (clone) · real tree moved — $(real_summary "$ST/real.diff")"
@@ -174,10 +222,10 @@ case "${1:-}" in
     # recorded and the baseline is refreshed so step 7 can still isolate the skill's own write. It
     # does NOT refuse: this line used to `die`, which is what killed a round whenever another session
     # committed — and it killed it AFTER the reviewer had been paid for, losing the round entirely.
-    if [ -f "$ST/real.fp" ] && ! diff <(fp_tree "$REAL") "$ST/real.fp" > "$ST/real.diff"; then
+    if [ -f "$ST/real.fp" ] && ! diff <(fp_tree "$REAL" real) "$ST/real.fp" > "$ST/real.diff"; then
       owned_drift "$ST/real.diff" && die "a path the skill OWNS moved since verify — refusing to append:$(sed 's/^/ /' "$ST/real.diff" | head -20 | tr '\n' ';')"
       echo "append: real tree moved before this write — $(real_summary "$ST/real.diff") (recorded, not refused)" >&2
-      fp_tree "$REAL" > "$ST/real.fp"
+      fp_tree "$REAL" real > "$ST/real.fp"
     fi
     L="$REAL/$LOG"; OLD="$ST/log.before"
     [ -e "$OLD" ] && [ "$L" -ef "$OLD" ] && die "state dir aliases the log"
@@ -187,7 +235,7 @@ case "${1:-}" in
     cp --remove-destination "$ST/log.expected" "$L" || die "cannot write the log"
     # step 7 — prove old + record, AND that the only change in the real tree is the log; roll back otherwise
     cmp -s "$L" "$ST/log.expected" || { cp --remove-destination "$OLD" "$L"; die "log is not old bytes + record — rolled back"; }
-    fp_tree "$REAL" > "$ST/real.fp.new"
+    fp_tree "$REAL" real > "$ST/real.fp.new"
     # The LOG is owned by the skill and its bytes are proved exactly, above (old + record, or rolled
     # back). Motion in the rest of the real tree during the write window belongs to the environment:
     # recorded, not rolled back. Rolling the log back because someone else committed during the
@@ -202,7 +250,7 @@ case "${1:-}" in
     # the redirect is checked: without `|| die` a failed write leaves the OLD baseline in place and
     # the case arm still exits 0 through the following echo — a swallowed status in the one helper
     # whose whole job is to make a baseline true
-    fp_tree "$REAL" > "$ST/real.fp" || die "cannot write $ST/real.fp"
+    fp_tree "$REAL" real > "$ST/real.fp" || die "cannot write $ST/real.fp"
     echo "refresh: real $(wc -l < "$ST/real.fp") lines";;
   destroy)
     CL="${2:?}"; [ -d "$CL/.git" ] || die "not a git dir: $CL"; chmod -R u+rwX "$CL" 2>/dev/null; rm -rf "$CL" || die "destroy failed: $CL"; [ -e "$CL" ] && die "still present: $CL"; echo "destroyed $CL";;
