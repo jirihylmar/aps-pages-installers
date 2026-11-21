@@ -362,7 +362,7 @@ Environment:
 - Region: {region}
 - Naming: {pattern}
 
-🤖 Generated with Claude Code"
+Assisted-by: Claude Code"
 ```
 
 ---

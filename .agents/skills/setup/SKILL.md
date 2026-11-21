@@ -9,6 +9,8 @@ Read `.claude/commands/setup.md` completely and execute it as the canonical proc
 Claude tool names to available Codex capabilities. Preserve the scenario distinction, naming
 invariants, AWS identity proof and project-owned instruction boundaries. Install both `.claude` and
 `.agents` executor surfaces; never commit `.codex/` host configuration.
+Where the procedure's commit messages end with `Assisted-by: Claude Code`, write `Assisted-by: Codex`
+instead (`PROJECT_CHARTER.md` § 8, *AI assistance is disclosed, not credited as authorship*).
 
 Two answers are the operator's alone. Ask for the one-sentence `description` and write it to
 `progress.json` with `description_reviewed`, never composing it; leave line 3 of `CLAUDE.md` and

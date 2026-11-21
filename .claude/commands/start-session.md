@@ -682,7 +682,8 @@ The correct shape of the `CLAUDE.md` commands section is a **list-free prose poi
 - **Concurrency guard.** Other agents may be editing `CLAUDE.md` concurrently. Only heal when `CLAUDE.md` has no other unstaged changes (`git diff --name-only` does not list it before your edit), and commit by pathspec so you never sweep another agent's pre-staged files:
 
 ```bash
-git commit CLAUDE.md -m "<task-id>: replace stale hardcoded command list with live-inventory pointer"
+git commit CLAUDE.md -m "<task-id>: replace stale hardcoded command list with live-inventory pointer" \
+  -m "Assisted-by: Claude Code"
 ```
 
 Never `git add -A` / `git add .` (see Multi-Agent Discipline → "Commit only files related to your task"). If the concurrency guard fails, skip the heal and report the drift in the Session Ready block instead.
@@ -1736,6 +1737,10 @@ for the disposition rules in `/update-progress` Step 3a — say so rather than c
 
 The renderer also emits a **pointer check** when `current_task`/`current_phase` is stale, absent,
 or not an id. Report those lines; do not quietly fix `progress.json` here.
+
+It lists **expired notices** too: open tasks whose `expires` has passed. Each is marked
+`superseded` at this session's next progress update (`/update-progress` Step 3), its reason naming
+the expiry (`/add-work` § *The Four Destinations*, destination 3).
 
 #### 4.1 — Present the handoff
 

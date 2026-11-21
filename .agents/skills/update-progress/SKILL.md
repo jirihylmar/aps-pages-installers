@@ -12,6 +12,8 @@ workflow.
 The canonical file is shared with existing Claude executors. Ignore its YAML `allowed-tools` list
 and translate Claude-specific tool identifiers to equivalent available Codex capabilities. A slash
 command named in that procedure means its corresponding repository skill when one exists.
+Where the procedure's commit messages end with `Assisted-by: Claude Code`, write `Assisted-by: Codex`
+instead (`PROJECT_CHARTER.md` § 8, *AI assistance is disclosed, not credited as authorship*).
 
 Preserve these boundaries:
 

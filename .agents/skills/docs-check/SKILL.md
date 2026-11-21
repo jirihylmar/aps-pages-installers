@@ -19,6 +19,8 @@ the findings for the rest are still printed, and the run is never clean; with `-
 is then `false`. It reads only what git tracks or has staged: run it after `git add`.
 
 The checker reads names, the first lines of dated text files and image headers from the tracked
-tree, never prose. Whether a document is canonical and current is the hygiene pass's judgement.
-Do not reproduce or weaken the checks in Codex prose; this adapter and Claude run the same
-executable checker.
+tree, never prose; and, when a phase directory directly under `docs/` holds a `KEPT.md`, that
+`KEPT.md` and the `progress.json` of the same tree, to tell whether the directory is a closed
+phase's own kept directory, which it passes over whole. Whether a document is canonical and current
+is the hygiene pass's judgement. Do not reproduce or weaken the checks in Codex prose; this adapter
+and Claude run the same executable checker.

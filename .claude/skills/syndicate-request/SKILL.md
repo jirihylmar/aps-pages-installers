@@ -170,6 +170,11 @@ bash .claude/skills/syndicate-request/request.sh close '<branch>' --outcome "dec
 - **Shape check (exit 7):** `show` and `close` refuse a branch that is not exactly what `send`
   makes, meaning one commit, on top of `main`, adding one regular file with the name the branch
   implies. Nothing is merged, and the operator is told.
+- **Its commits disclose the AI tool that ran it** (`PROJECT_CHARTER.md` § 8, *AI assistance is
+  disclosed, not credited as authorship*). The commit `send` makes and the two `close` makes end
+  with `Assisted-by: Claude Code` when Claude Code runs the script (it sets `CLAUDECODE` or
+  `CLAUDE_CODE_SESSION_ID`), `Assisted-by: Codex` when Codex does (`CODEX_THREAD_ID`), both when
+  both are set, and neither when a person runs it by hand. No commit names an AI tool as an author.
 - **The outcome is the answer.** The sender reads it with `request.sh outcome` (*Reading the
   answer*, above), so write it for the sender: what was done, or why not, in one line. A request
   answered anywhere else is not answered until it is closed. A fuller note in the sending project

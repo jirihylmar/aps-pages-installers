@@ -672,7 +672,7 @@ Updated:
 - AGENTS.md (Codex entry merged/created)
 - .gitignore (artifact-guard baseline)
 
-🤖 Generated with Claude Code"
+Assisted-by: Claude Code"
 git status --short --ignored -- "$@"
 git ls-tree HEAD -- .claude/hooks/pre-commit
 fi

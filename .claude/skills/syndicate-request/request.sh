@@ -50,6 +50,14 @@
 # that cannot be written changes neither the output nor the exit code (the watch reports it missing).
 # SYNDICATE_REQUEST_NOW (an ISO UTC instant) pins the recorded instant for tests.
 #
+# AI ASSISTANCE IS DISCLOSED (PROJECT_CHARTER.md section 8, *AI assistance is disclosed, not credited
+# as authorship*): a script that commits on a session's behalf writes the line that session would. The
+# commit send makes, and the two close makes, end with "Assisted-by: Claude Code" when Claude Code
+# runs it (it exports CLAUDECODE=1 and CLAUDE_CODE_SESSION_ID to its commands), "Assisted-by: Codex"
+# when Codex does (codex-cli exports CODEX_THREAD_ID, checked 2026-11-03), both when both are set (one
+# ran the other), and neither when neither is: a person ran it by hand. Never a Co-Authored-By line
+# naming an AI tool.
+#
 # This project's IDENTITY is its origin's repository name (PROJECT_CHARTER.md: the display name in
 # progress.json is a label, not an identity); with no origin, the display name made into a slug;
 # failing that, the folder's name.
@@ -90,6 +98,17 @@ U
   exit 2
 }
 is_receiver() { [ "$1" = syndicate-playbooks-examples ] || [ "$1" = hyl-resources-manager ]; }
+# with_trailer <subject>: the commit message, closed by the Assisted-by lines of whichever AI tool runs
+# this (see AI ASSISTANCE above), or the subject alone when none does.
+with_trailer() {
+  local claude="" codex=""
+  if [ "${CLAUDECODE:-}" = 1 ] || [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then claude=1; fi
+  if [ -n "${CODEX_THREAD_ID:-}" ]; then codex=1; fi
+  printf '%s\n' "$1"
+  [ -z "$claude$codex" ] || printf '\n'
+  [ -z "$claude" ] || printf 'Assisted-by: Claude Code\n'
+  [ -z "$codex" ] || printf 'Assisted-by: Codex\n'
+}
 
 # Never wait for a credential prompt: a missing grant must fail fast as "no route", not hang.
 export GIT_TERMINAL_PROMPT=0
@@ -351,7 +370,7 @@ cmd_send() {
   GIT_INDEX_FILE="$TMP/index" G read-tree HEAD \
     && GIT_INDEX_FILE="$TMP/index" G update-index --add --cacheinfo "100644,$blob,$file" \
     && tree="$(GIT_INDEX_FILE="$TMP/index" G write-tree)" \
-    && commit="$(G commit-tree "$tree" -p HEAD -m "request to $to from $PROJECT: $title")" \
+    && commit="$(G commit-tree "$tree" -p HEAD -m "$(with_trailer "request to $to from $PROJECT: $title")")" \
     || die 6 "could not build the request commit locally"
 
   # Create-only: the lease with an empty expected value refuses if the branch exists by then.
@@ -548,11 +567,11 @@ cmd_close() {
   GIT_INDEX_FILE="$TMP/i1" G read-tree "$tip" \
     && GIT_INDEX_FILE="$TMP/i1" G update-index --cacheinfo "100644,$blob,$RQ_FILE" \
     && otree="$(GIT_INDEX_FILE="$TMP/i1" G write-tree)" \
-    && ocommit="$(G commit-tree "$otree" -p "$tip" -m "request closed by $PROJECT: $outcome")" \
+    && ocommit="$(G commit-tree "$otree" -p "$tip" -m "$(with_trailer "request closed by $PROJECT: $outcome")")" \
     && GIT_INDEX_FILE="$TMP/i2" G read-tree "$main" \
     && GIT_INDEX_FILE="$TMP/i2" G update-index --add --cacheinfo "100644,$blob,$RQ_FILE" \
     && mtree="$(GIT_INDEX_FILE="$TMP/i2" G write-tree)" \
-    && mcommit="$(G commit-tree "$mtree" -p "$main" -p "$ocommit" -m "close $branch")" \
+    && mcommit="$(G commit-tree "$mtree" -p "$main" -p "$ocommit" -m "$(with_trailer "close $branch")")" \
     || die 6 "could not build the close commits locally"
 
   # One atomic push: the branch gains the outcome AND main merges it, or neither moves.

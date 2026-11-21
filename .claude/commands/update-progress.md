@@ -357,9 +357,10 @@ skills cite CLI flags that don't exist and its docs describe retired resources. 
 and incremental: **the session that touches a claim verifies that claim.**
 
 If this session edited any skill (`.claude/commands/*.md`, `.claude/skills/*/SKILL.md`,
-`.agents/skills/*/SKILL.md`), canonical doc (`docs/` outside `_archive/`), or a product page,
-template or UI string that prints a command for its reader to run, verify the operational claims
-**in the sections you touched** against the actual implementation before marking the task complete:
+`.agents/skills/*/SKILL.md`), canonical doc (`docs/` outside `_archive/` and the working dirs,
+Step 2b), or a product page, template or UI string that prints a command for its reader to run,
+verify the operational claims **in the sections you touched** against the actual implementation
+before marking the task complete:
 
 | Claim type | Verification |
 |---|---|
@@ -420,11 +421,19 @@ cite flags that don't exist.
    .claude/commands/*.md          # live skills (defaults included — ground them, report, never edit)
    .claude/skills/*/SKILL.md      # skills (distributed ones too — ground them, report, never edit)
    .agents/skills/*/SKILL.md      # Codex skills, the same way
-   docs/**/*.md                   # excluding _archive/
+   docs/**/*.md                   # excluding _archive/ and the working dirs (below)
    ops/**/*.md                    # runbooks: read at the worst possible moment, so rot costs most
    README.md  CLAUDE.md                             # root canonical docs, if present
    IMPLEMENTATION_PLAN.md                           # origin record — grounded differently, item 3
    ```
+
+   **A working dir under `docs/` is not in the set**: a legacy `docs/phase-*`, `wip-*`, `tmp-*`
+   or `scratch*` dir, the ones `/repo-hygiene` quick check B judges, and any other dir a phase left
+   there for its work that a record which is never rewritten cites (Step 3a). It is working
+   material, not a document a reader takes as current, and a kept one stays whole and unchanged
+   (Step 3a), so the first row of the table in item 3 (*fix it in place*) would edit a file nothing
+   may change. Never pick a file in one; a `partial` entry that names one is deleted, not resumed.
+   The phase's close and check B deal with the dir itself.
 
    **Why the root docs are named explicitly.** This step's selection rule used to be
    `.claude/commands/*.md` ∪ `docs/**`, which silently excluded `README.md`, `CLAUDE.md`,
@@ -575,6 +584,14 @@ it later, and never write one later than the commit that records it: an estimate
 past its commit, and the record then contradicts git. `/progress-check` warns `FUTURE` when any of
 the three is ahead of the clock.
 
+**An informational notice past its `expires` is closed here, in either mode.** Run
+`python3 .claude/skills/open-work/open_work.py` and read its *Expired notices* list. Set each task it
+names to `superseded`, with `superseded_at` taken as above and a `superseded_reason` that names the
+expiry (`expired 2026-11-30, not acknowledged`). That is how such a notice closes when nobody
+acknowledged it (`/add-work` § *The Four Destinations*, destination 3); `/start-session` § 4.0a
+lists the same notices and leaves them to this step. A task that asks for work (an estate notice,
+an approved task) is not closed by its date: name it in the report and leave it open.
+
 ### 3b. Reconcile every phase's status against its own tasks (before 3a, every session)
 
 A phase's status is a **derived** fact. Nothing in a session updates it, so it drifts silently in
@@ -712,12 +729,40 @@ Then the sweeps:
    The destination is named in full because `git mv work/phase-<id> docs/_archive/` with no
    `docs/_archive/` yet renames the dir itself to `docs/_archive`, and its files land loose there;
    into an existing `docs/_archive/<dir>` git would nest it instead. Never blind-move, never
-   delete. A reference check after the move must show zero new broken refs.
-   `/repo-hygiene` quick check B lists the working dirs in both places whose phase has closed.
+   delete. A reference check after the move must show zero new broken refs. It reads the live
+   surfaces (`/repo-hygiene` quick check C's set), which leave the legacy working dirs out. A link
+   from inside any kept dir (below) that the sweep breaks records what was there: it is never fixed,
+   and it does not count.
+   `/repo-hygiene` quick check B lists the working dirs in both places whose phase has closed,
+   anything else under `work/` but an open phase's `work/phase-<id>/`, and every legacy dir under
+   `docs/` whatever its phase, except a kept one (below): the phase's own dir, named `phase-<id>`
+   (or `phase-<id>-<words>`), its phase closed, whose `KEPT.md` is a non-empty file, not a link.
+   `docs-check` passes over the same dirs under `docs/`.
    Phase documentation the phase left elsewhere under `docs/` (a file named for the phase or a
    session, a hand-off outside `docs/handoff/`, notes of a discussion) is swept the same way: what
    lasts into the canonical document, the rest archived (`PROJECT_CHARTER.md` § 11, *`docs/` holds
    what persists*). `python3 .claude/skills/docs-check/docs_check.py` lists what it finds by name.
+
+   **A working dir that a record which is never rewritten cites stays where it is, whole.** Such a
+   record is a terminal task (its `verify_result` above all: § *NEVER Do*), or an applied artifact
+   that cannot change, such as a database migration whose runner enforces its checksum, or a
+   published release. Neither can be repointed, so moving the dir would break the citation for
+   good. Extract what stays canonical from it by copying (a hand-off in it that is still read is
+   copied to `docs/handoff/<YYYY-MM-DD>-<name>/`), repoint the live references, and leave the dir
+   in place, whole: its files may cite one another, and a record may cite the dir itself.
+   In the phase's own dir, `work/phase-<id>/` or the legacy `docs/phase-<id>/`, write `KEPT.md`,
+   one line for each record that cites it, naming the record and why it cannot change
+   (`- progress.json task 4.3, its verify_result`; `- migrations/0020_index.sql, applied, its
+   checksum enforced`). Commit it with the close and name the dir in the close report. Nothing else
+   is added to a kept dir, and none is made. Only the phase's own dir takes a `KEPT.md`, because its
+   name is how `/repo-hygiene` quick check B and `docs-check` tell that its phase has closed, and
+   they pass it over only then (`PROJECT_CHARTER.md` § 11). A working dir under another name that
+   such a record cites (a `work/<name>/`, a legacy `docs/wip-*`) is kept all the same, with no
+   `KEPT.md`: it is left where it is, whole, and named to the operator in the close report; check B
+   (and, under `docs/`, `docs-check`) goes on reporting it, and says it stays. Kept or not, a working
+   dir is not a canonical document: no progress update grounds, fixes or de-phases a file in one
+   (Steps 2b and 7). Every other working dir is swept as above, so the reference check still shows
+   zero new broken refs.
 2. **progress.json weight check.** If `progress.json` exceeds ~300KB, run the compaction step from
    `/repo-hygiene` (Step 4: dry-run, read the account, `--apply`) — verbose bodies of *finished*
    tasks in *finished* phases outside the newest two move to committed sidecars under
@@ -730,8 +775,8 @@ Then the sweeps:
 4. **Content check on what the phase leaves canonical.** Any doc/skill the phase promotes to (or
    leaves in) a canonical location gets the grounding-at-touch treatment (Step 2a table) and is
    de-phased: phase/task numbering stays with the archived working material, never as load-bearing
-   content in the surviving canonical doc. Bounded to the phase's own files — this is a slice,
-   not a tree-wide sweep.
+   content in the surviving canonical doc. A kept dir is not among them: it is left as it is, never
+   grounded or de-phased. Bounded to the phase's own files — this is a slice, not a tree-wide sweep.
 
 This is the incremental half of repo hygiene; the periodic full pass is `/repo-hygiene`
 (triggered by the clock gate in `/start-session` Step 2.7).
@@ -927,8 +972,9 @@ b=$(git merge-base @{u} HEAD 2>/dev/null); [ -n "$b" ] && [ "$b" != "$(git rev-p
 git diff --name-only "$b" 2>/dev/null | awk 'NR<=50; END {if (NR>50) printf "(+%d more)\n", NR-50}'
 ```
 Then: for each **canonical surface** (`README.md`, `CLAUDE.md`, `docs/**` outside `_archive/`,
-`handoff/` and the dated records, which say in their first lines that they are records and are never
-kept current) that describes something in that diff, bring it into line — the same *found it, then fix it*
+`handoff/`, the dated records, which say in their first lines that they are records and are never
+kept current, and the working dirs, which are working material and, when kept, never revised: Step
+3a) that describes something in that diff, bring it into line — the same *found it, then fix it*
 rule as Step 2b. Do not open documents the session did not touch the subject of.
 
 **Project skills are swept too, registry or not.** A project's own skill
@@ -987,7 +1033,8 @@ takes it in `notes`. A completion with no `docs:` is one this step did not run f
    audit, a baseline, a periodic review) or a dated hand-off that the search finds is not revised
    instead: the next one on its subject is a new dated section or file, what is written takes at
    most its record line and a pointer to the newer, and the subject's canonical document is changed
-   to point at the latest.
+   to point at the latest. A file the search finds in a working dir under `docs/` (Step 2b) is not
+   changed instead either: it is working material, and a kept one is never revised (Step 3a).
    Under `docs/` it must persist (`PROJECT_CHARTER.md` § 11, *`docs/` holds what persists*): no
    phase or session documentation, and a dated record opens with its record line. The commit guard
    runs `docs-check` on what the commit adds and notes anything that does not fit.
@@ -1236,7 +1283,7 @@ Completed:
 
 Next: Task X.Z
 
-🤖 Generated with Claude Code" -- progress.json session_notes.md <your-changed-files>
+Assisted-by: Claude Code" -- progress.json session_notes.md <your-changed-files>
 ```
 
 (The `-m` message comes BEFORE the `--` pathspec — `git commit -- <paths> -m "msg"` fails because
@@ -1250,7 +1297,7 @@ for dir in */; do
   [ -n "$(git -C "$dir" status --porcelain)" ] || continue   # skip repos you did not touch
   echo "=== $dir: review, then commit ONLY your task's files ==="
   git -C "$dir" status --short
-  # git -C "$dir" commit -m "task X.Y: [what changed in $dir]" -- <your-changed-files>
+  # git -C "$dir" commit -m "task X.Y: [what changed in $dir]" -m "Assisted-by: Claude Code" -- <your-changed-files>
 done
 ```
 

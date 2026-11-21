@@ -12,3 +12,5 @@ use the selected project executor unless the operator assigns work elsewhere. Ev
 also records `operations`, and the first phase that builds something that keeps running carries the
 task that fills the entry document's `## Operate and Rebuild` rows and proves the rebuild from a
 clean clone on another host (`PROJECT_CHARTER.md` § 8, *Token-heavy development, token-light operation*).
+Where the procedure's commit messages end with `Assisted-by: Claude Code`, write `Assisted-by: Codex`
+instead (`PROJECT_CHARTER.md` § 8, *AI assistance is disclosed, not credited as authorship*).

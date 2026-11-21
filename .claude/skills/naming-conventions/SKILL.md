@@ -63,3 +63,18 @@ On 2026-10-26 three projects wrote "project and account" three different ways in
 control room's own alarm read "hrm-132". Abbreviations need a table to read, and every new project would have
 invented another. The full repository name needs none, the tag says where the code lives even where a name could
 not be changed, and the check makes a deviation visible instead of letting it spread.
+
+## One S3 bucket per project per account
+
+Set by the operator, 2026-11-21, after a project made a bucket for every operational purpose: "this is
+not a scratch and buckets are limited resource. creating separate buckets for every operational thing
+is not a good practice , clean it and dont repeat the mess". A project keeps one S3 bucket in each AWS
+account it uses, named `<project>-<what>-<account id>` (*Names Say Whose They Are*), and keeps each
+purpose under its own prefix in it (`logs/`, `exports/`, `releases/`, ...). A new bucket is asked for
+first through the request mailbox, saying why a prefix in the existing one will not do (for example a
+public website origin that needs its own bucket policy). CDK's shared bootstrap bucket is not counted.
+A project that has more already folds them into one: it moves the objects, repoints whatever reads or
+writes them through its infrastructure code, checks nothing still uses the old bucket, and only then
+removes it (*Storage Must Stay Deletable*).
+
+The same rule is the template's Critical Rule *One S3 Bucket per Project per Account*.

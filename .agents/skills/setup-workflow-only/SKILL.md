@@ -9,6 +9,8 @@ Read `.claude/commands/setup-workflow-only.md` completely and execute it as the 
 translating Claude tool names to available Codex capabilities. Preserve existing `CLAUDE.md` and
 `AGENTS.md` content, merge only the missing workflow entry, and install both `.claude` and `.agents`
 surfaces. Do not treat this command as a default refresh.
+Where the procedure's commit messages end with `Assisted-by: Claude Code`, write `Assisted-by: Codex`
+instead (`PROJECT_CHARTER.md` § 8, *AI assistance is disclosed, not credited as authorship*).
 
 Two answers are the operator's alone. Ask for the one-sentence `description` and write it to
 `progress.json` with `description_reviewed`, never composing it; leave line 3 of a new `CLAUDE.md`

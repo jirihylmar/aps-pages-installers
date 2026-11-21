@@ -639,7 +639,16 @@ extracts from and archives. `docs/` holds only what persists (*`docs/` holds wha
 below). A deliverable lives at the path its task declares. No canonical document cites working material as current, and
 nothing is written beside the canonical documents to be sorted later. A phase working directory
 still under `docs/`, where these rules put it until 2026-10-27, is working material all the same,
-and the phase's close and the periodic hygiene pass sweep it.
+and the phase's close and the periodic hygiene pass sweep it. The one exception, in either place,
+is a **kept** working directory: one that a record which is never rewritten cites (a terminal
+task's `verify_result`, an applied migration whose checksum is enforced), so that moving it would
+break the citation for good. It stays where it is, whole and unchanged. The one file ever added to
+it is `KEPT.md`, naming each such record, and only to a phase's own directory, whose name tells the
+checks that its phase has closed; one under another name gets nothing and is named to the operator
+(`/update-progress` Step 3a). Kept or not, a working directory is not a canonical document, and no
+progress update grounds, fixes or de-phases what is in it. This exception was added on
+2026-11-21, when a project's terminal tasks and applied migrations cited `work/phase-<id>/` files
+that the close's sweep could not move without breaking them.
 
 Measured 2026-10-27, after the operator's feedback that day: *"i am seeing attempts to
 update-progress automatically , but if they are doing it within the workflow, it differs to when
@@ -664,16 +673,18 @@ holds only what persists:
 - **dated records**, each about one date or period and never revised: an incident report, an
   audit, a measurement baseline, a periodic review (a later measurement is added beside it, never
   merged into it);
-- `docs/_archive/`, and the dated hand-offs in `docs/handoff/`.
+- `docs/_archive/`, and the dated hand-offs in `docs/handoff/`;
+- a **kept** phase working directory left there before 2026-10-27 (above): never revised, and
+  given nothing but, under its phase's own name, the `KEPT.md` that names the record citing it.
 
 Nothing that stops being true when a phase or a session ends is written there: not a phase's or a
 session's plan, notes, status, evidence or results, not a discussion of the next phase or the
 decisions taken in one, not a draft, scratch or a run's output. That is working material (above)
 or the task's own evidence. What a phase established that lasts is written into the canonical
-document it changes, at the latest when the phase closes (`/update-progress` Step 3a). Phase
-documentation is not kept in `docs/`, under a phase's name or any other: every progress update would
-then have to keep account of which file there is current and which records a moment, and that
-bookkeeping is what this rule removes.
+document it changes, at the latest when the phase closes (`/update-progress` Step 3a). Apart from
+a kept directory, which no progress update touches, phase documentation is not kept in `docs/`,
+under a phase's name or any other: every progress update would then have to keep account of which
+file there is current and which records a moment, and that bookkeeping is what this rule removes.
 
 A dated record says that it is one, so that no reader and no progress update has to work out what
 it is. Its date is in its name, and its first lines say `> Dated record, <kind>, <date>: not kept
@@ -684,9 +695,9 @@ line (an image, a table, a PDF) is identified by the date in its name alone. A d
 document meant to be current carries no date in its name.
 
 `docs-check` (`.claude/skills/docs-check/`) reports what breaks these rules by its name or its
-size: a phase, session or working name (dated or not), a hand-off outside `docs/handoff/`, a dated
-record without its line, a dated architecture image, and an architecture diagram too large to read
-at the width it is shown (`/generate-architecture`). The commit guard refuses a commit that adds or
+size: a phase, session or working name (dated or not) other than a kept directory's, a hand-off
+outside `docs/handoff/`, a dated record without its line, a dated architecture image, and an
+architecture diagram too large to read at the width it is shown (`/generate-architecture`). The commit guard refuses a commit that adds or
 changes an architecture image too large to read, because its size is measured, not inferred; it
 notes the rest on the commit that adds it and never refuses that commit for them. `/repo-hygiene`
 reports all of it over the whole tree. Ad hoc content under a neutral name is

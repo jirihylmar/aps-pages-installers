@@ -50,6 +50,14 @@ theme: 2, 5`. The tables still follow the one shared `current_phase`, so another
 `in_progress` tasks show under *Stuck elsewhere*; the line says whose they are. A project without
 themes gets exactly the output it always did.
 
+**An informational notice whose `expires` has passed is listed after the tables**, under
+*Expired notices*: every open task carrying an `expires` that is now behind us, with its phase and
+the date. The session marks each `superseded`, its reason naming the expiry, which is how such a
+notice closes when nobody acknowledged it (`/add-work` § *The Four Destinations*, destination 3).
+A date alone holds through that day, UTC. An `expires` that is not a date is named in the pointer
+check, because that notice could never expire. `--now <instant>` reads the clock from its argument
+instead, for tests.
+
 **It used to read a second, and that was the mistake.** Until 2026-08-26 it also read
 `consult_notes.md` beside it and rendered an **Open consult cycles** table, reasoning that a cycle
 closed `agreed-proposed` or `disputed` exists nowhere else. What that actually created was a second

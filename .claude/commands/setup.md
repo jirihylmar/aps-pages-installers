@@ -313,7 +313,7 @@ cd {prefix}-{part}
 git init
 # Create initial files based on type
 git add .
-git commit -m "Initial commit"
+git commit -m "Initial commit" -m "Assisted-by: Claude Code"
 gh repo create {github_org}/{prefix}-{part} --private --source=. --push
 ```
 
@@ -380,7 +380,7 @@ Environment:
 - Region: {region}
 - Naming: {pattern}
 
-🤖 Generated with Claude Code"
+Assisted-by: Claude Code"
 ```
 
 ---
@@ -489,7 +489,7 @@ git add --chmod=+x -- .claude/hooks/pre-commit &&
     | while IFS= read -r f; do [ -f "$f" ] && git add --chmod=+x -- "$f"; done; true; } &&
 git commit -m "setup: Add playbook commands to existing project
 
-🤖 Generated with Claude Code"
+Assisted-by: Claude Code"
 ```
 
 ---

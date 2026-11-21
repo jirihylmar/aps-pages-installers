@@ -45,8 +45,16 @@ of issues separatelly is a polution. we have progress json to govern the project
 > discusions > task updated in progress > end." So the table is gone rather than given a grammar:
 progress.json governs, and consult_notes.md is evidence to read, not work to track.
 
+EXPIRED NOTICES. An informational notice (/add-work § The Four Destinations, destination 3) is an
+open task carrying an `expires` date. Its closure was written down as "it passes `expires` and the
+next session marks it `superseded` naming the expiry", and until 2026-11-21 nothing read `expires`,
+so no session was ever told one had passed: the closure had nothing behind it. Every open task whose
+`expires` has passed is now listed under "Expired notices" after the tables, and one whose
+`expires` is not a date is named in the pointer check, because it could never expire. A date alone
+means the notice holds through that day (UTC).
+
 Usage:
-    python3 open_work.py [--file progress.json]
+    python3 open_work.py [--file progress.json] [--now <ISO instant, for tests>]
 
 Exit codes:
     0  tables rendered
@@ -60,6 +68,7 @@ Exit codes:
 """
 
 import collections
+import datetime
 import json
 import sys
 
@@ -277,6 +286,24 @@ def themes_line(phases):
     return "**Open phases by theme:** %s" % "; ".join(parts)
 
 
+def expiry(raw):
+    """-> the aware UTC instant from which a notice with this `expires` has expired, or None when
+    raw is not a date. A date alone (2026-10-01) holds through that day, so it expires at the next
+    midnight UTC; an instant without a zone is read as UTC."""
+    if not isinstance(raw, str):
+        return None
+    text = raw.strip()
+    try:
+        if len(text) == 10:
+            day = datetime.date.fromisoformat(text)
+            return (datetime.datetime(day.year, day.month, day.day, tzinfo=datetime.timezone.utc)
+                    + datetime.timedelta(days=1))
+        when = datetime.datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+    except ValueError:
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=datetime.timezone.utc)
+
+
 def stuck_since(task, phase):
     for key in ("started_at", "added_at", "added_on"):
         if task.get(key):
@@ -285,13 +312,23 @@ def stuck_since(task, phase):
 
 
 def main():
-    path = "progress.json"
+    path, now = "progress.json", None
     argv = sys.argv[1:]
     for i, arg in enumerate(argv):
         if arg == "--file" and i + 1 < len(argv):
             path = argv[i + 1]
         elif arg.startswith("--file="):
             path = arg.split("=", 1)[1]
+        elif arg == "--now" and i + 1 < len(argv):
+            now = argv[i + 1]
+        elif arg.startswith("--now="):
+            now = arg.split("=", 1)[1]
+    if now is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+    else:   # an instant only: a date alone would be read as the end of that day
+        given, now = now, (None if len(now.strip()) == 10 else expiry(now))
+        if now is None:
+            die("--now %r is not an ISO instant (2026-11-21T00:00:00Z)" % given)
 
     try:
         with open(path, encoding="utf-8") as fh:
@@ -368,6 +405,21 @@ def main():
                          % (current_task, resolved, current_phase))
     if not current_phase:
         current_phase = resolved
+
+    # Open tasks carrying `expires`: past it, a notice is listed after the tables; unreadable, it
+    # could never expire, which is a defect of the record like a malformed entry above.
+    expired = []
+    for key, phase in phases.items():
+        for task in tasks_of(phase)[0]:
+            if "expires" not in task or is_terminal(task):
+                continue
+            when = expiry(task.get("expires"))
+            if when is None:
+                notes.append("task '%s' carries an `expires` that is not a date (%s) — it can never "
+                             "expire; give it a date or acknowledge it"
+                             % (cell(task.get("id", "?"), 40), cell(repr(task.get("expires")), 40)))
+            elif when <= now:
+                expired.append((task, key))
 
     # Every task still open, in any phase, by the same DONE vocabulary the buckets use — so a
     # dependency spelt 'completed' or 'superseded' is finished, and nothing waits on it.
@@ -469,6 +521,15 @@ def main():
                           fill("what this phase is FOR, one line — not its title again"),
                           count, "" if count == 1 else "s"))
             rendered_rows += 1
+        out.append("")
+
+    if expired:
+        out.append("> **Expired notices** — each passed its `expires`; this session marks it "
+                   "`superseded`, its reason naming the expiry (/add-work § The Four "
+                   "Destinations, destination 3):")
+        out.extend("> - %s (%s) expired %s" % (cell(task.get("id", "?"), 40), phase_label(key),
+                                                cell(task.get("expires"), 40))
+                   for task, key in expired)
         out.append("")
 
     if rendered_rows == 0 and not current_block:

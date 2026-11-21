@@ -65,8 +65,8 @@ owner and no authorization has destination 4.**
 | # | Destination | What belongs there | Who owns it | What authorizes it | How it CLOSES |
 |---|---|---|---|---|---|
 | 1 | **Approved task** — a task in a goal-bearing phase of `progress.json` | work this project is going to do | this project | the operator's explicit word, per *Authorization Boundaries* above — nothing else | completion, or the disposition gate in `/update-progress` Step 3a: `superseded` with a stated reason |
-| 2 | **Estate notice** — a task in the OWNING project's `progress.json`, carrying `estate_notice: <marker>` | a finding about a file this project does not own | that other project | role 2 of the central repo (`/syndicate-estate-operations`, `--apply` **and** `--plan <digest>`) | when the owning project acts on it, or refuses it (`.claude/estate-align.skip`, then `superseded` with the reason) |
-| 3 | **Informational notice** — a task that reports a result instead of requesting work, carrying an explicit `expires` date | something a human must see exactly once: an unattended run announcing that it ran, or that it failed | this project | the run itself. It asks for no work, so it needs no approval | a human acknowledges it (mark it `complete`), or it passes `expires` and the next session marks it `superseded` naming the expiry |
+| 2 | **Estate notice** — a task in the OWNING project's `progress.json`, carrying `estate_notice: <marker>` | a finding about a file this project does not own. It reaches the central repo through the request mailbox: `bash .claude/skills/syndicate-request/request.sh send --to syndicate-playbooks-examples`, the block in `/update-progress` § 11.b | that other project | role 2 of the central repo (`/syndicate-estate-operations`, `--apply` **and** `--plan <digest>`) | when the owning project acts on it, or refuses it (`.claude/estate-align.skip`, then `superseded` with the reason) |
+| 3 | **Informational notice** — a task that reports a result instead of requesting work, carrying an explicit `expires` date | something a human must see exactly once: an unattended run announcing that it ran, or that it failed | this project | the run itself. It asks for no work, so it needs no approval | a human acknowledges it (mark it `complete`), or it passes `expires`: from then `/open-work` lists it under *Expired notices* at every session start and close, until a session marks it `superseded` naming the expiry |
 | 4 | **Untracked observation** — the session report and `session_notes.md` | everything else: speculation, an idea nobody has agreed to, a "we should probably…" | nobody | nothing | the session ends. It was never open work |
 
 **A destination-3 notice must carry an expiry or an acknowledgement, or it is destination 4 wearing
@@ -135,8 +135,8 @@ the destination or product outcome is genuinely ambiguous.
 **C is not a way to record work without approval.** If the concern has an owner here and the
 operator has said to do it, it is A or B and takes the ordinary approval; if it does not, it is not
 work, and it must not be written into `progress.json` under any key. A finding about a file some
-*other* project owns is neither: that is destination 2, delivered to the owning project by role 2
-from the central repo, never written from here.
+*other* project owns is neither: that is destination 2, sent to the central repo as its row says and
+delivered to the owning project by role 2 from there, never written from here.
 
 ### 2. Collect Work Details
 
@@ -343,7 +343,7 @@ Added:
 
 Source: [source]
 
-🤖 Generated with Claude Code"
+Assisted-by: Claude Code"
 ```
 
 ### 9. Report, then continue

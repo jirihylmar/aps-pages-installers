@@ -27,13 +27,21 @@ judges prose.
 A directory reported under (a)-(d), or as a dated directory, is one finding with its file count;
 no NAME under it is reported again. The size rule is not a naming rule: every image under
 docs/architecture/ is measured, whatever directory finding covers it. Directories named _archive or
-archive, and docs/handoff/, are skipped with everything under them.
+archive, and docs/handoff/, are skipped with everything under them. A KEPT phase working directory
+directly under docs/ is not reported: a record that is never rewritten cites it, so it stays where
+it is (/update-progress Step 3a); the conditions are at KEPT below. It is passed over whole, a
+hand-off name on it or under it included (docs/phase-6-handoff/), because every remedy this check
+gives would move or rename what that record cites. Every finding on a directory named (a)-(d) or
+dated outside docs/architecture/ says the same: a directory such a record cites stays where it is
+and is named to the operator (CITED_TOO).
 
 WHERE IT READS. The tracked tree, through git, never the working tree: the index (default), one
 commit (--rev), or what the index adds to HEAD (--staged, without rename detection: a rename is a
 deletion and an addition, and the added path is judged). A blob is read only when a rule needs
-its bytes. In a partial clone the blobs it needs and lacks are fetched in ONE fetch; no read
-fetches lazily, so an unreachable promisor costs one failed fetch, not one per blob.
+its bytes; a phase directory's KEPT.md, and progress.json from the same tree, only when a phase
+directory directly under docs/ holds one. In a partial clone the blobs it needs and lacks are
+fetched in ONE fetch; no read fetches lazily, so an unreachable promisor costs one failed fetch,
+not one per blob.
 
 EXIT. 0 nothing found; 1 findings; 2 could not check: not a git work tree, an unknown revision,
 docs tracked as a symlink or submodule, a git failure, a blob that could not be read, an image
@@ -87,6 +95,32 @@ GITLINK = "160000"                    # a submodule: names only, never read
 NAMING_CHANGES = {"A"}                # --staged: a path this commit adds
 IMAGE_CHANGES = {"A", "M", "T"}       # --staged: an image this commit adds or changes
 
+# A KEPT phase working directory. These defaults put a phase's working directory directly under
+# docs/ until 2026-10-27, and a record that is never rewritten (a terminal task's verify_result, an
+# applied migration whose checksum is enforced) may cite one. Such a directory stays where it is,
+# whole (/update-progress Step 3a), and its KEPT.md names those records. It is passed over only when
+# all of these hold, which is what /repo-hygiene quick check B judges too: its name is phase-<id> or
+# phase-<id>-<words>, exactly as check B reads it; its KEPT.md is not empty; and progress.json, read
+# from the same tree, says that phase is closed. With --staged it must already be in HEAD, and
+# KEPT.md is the one path the commit may add under it: a directory that stays where it is is not
+# created there, and it gains nothing. Any other name, an open or unknown phase, an empty KEPT.md
+# or a new directory is not passed over: a cited one stays all the same, and the finding says so.
+# A kept directory is passed over whole, its own name and every name under it, a hand-off among them
+# (docs/phase-6-handoff/, docs/phase-6/SESSION-HANDOFF.md), and that is deliberate: every remedy this
+# check gives moves or renames, which would break the citation that keeps it. A hand-off in it that
+# was still read was copied to docs/handoff/ when its phase closed (/update-progress Step 3a), and
+# a file added to it later is reported on the commit that adds it (--staged: a kept directory gains
+# nothing); a run over the whole tree after that commit no longer tells the file from the rest.
+KEPT = "KEPT.md"
+KEPT_DIR_RE = re.compile(r"^phase-(.+)$")
+KEPT_HEAD_BYTES = 64 * 1024
+PROGRESS = "progress.json"
+PROGRESS_BYTES = 64 * 1024 * 1024
+# The open-work renderer's terminal vocabulary (skills/open-work/open_work.py DONE), as check B's
+# is: a phase is closed here exactly when it is closed there.
+DONE = ("complete", "completed", "superseded", "done", "closed", "dropped",
+        "cancelled", "canceled", "resolved", "obsolete", "abandoned")
+
 # A text file is kept until RECORD_LINES line breaks have been seen, up to TEXT_HEAD_BYTES: a
 # self-contained HTML page can carry a whole stylesheet on its first line.
 TEXT_HEAD_BYTES = 1024 * 1024
@@ -117,6 +151,13 @@ WHERE_INSTEAD = (
     "docs/_archive/; a record the operator needs (an incident report, an audit) is named for its "
     "subject and its date, not for a phase; a hand-off -> docs/handoff/<YYYY-MM-DD>-<name>/"
 )
+# Appended to every directory finding that would move or rename a directory, before WRITER_TOO. A
+# record that is never rewritten may cite it, which this check cannot see, and a move it advised
+# would break that citation for good (danse-spatial, 2026-11-21).
+CITED_TOO = ("a directory that a record which is never rewritten (a terminal task's verify_result, "
+             "an applied migration) cites stays where it is, whole, and is named to the operator "
+             "(/update-progress Step 3a); only a closed phase's own docs/phase-<id>/ then carries "
+             "a KEPT.md (a non-empty file, not a link) naming that record, and is passed over here")
 # Appended to every directory finding: a directory under docs/ is often written by the project's
 # own procedure (a test run's dated output, a hand-off folder), and moving or marking what is there
 # is undone by that procedure's next run.
@@ -661,15 +702,72 @@ def in_scope(path):
     return not ARCHIVE_DIRS.intersection(s.lower() for s in path[len(DOCS):].split("/")[:-1])
 
 
+def progress_entry(git, rev=None):
+    """progress.json at the repository root, from the index or from rev's tree: an Entry, or None
+    when that tree tracks no such file (or tracks it as a link or a submodule, never read). An
+    unmerged index entry has no single blob to read, so its oid is None."""
+    if rev is None:
+        out, _ = git.run(["ls-files", "-z", "-s", "--", PROGRESS])
+    else:
+        out, _ = git.run(["ls-tree", "-z", "--full-tree", rev + "^{commit}", "--", PROGRESS])
+    found = None
+    for rec in out.split(b"\0"):
+        meta, _, path = rec.partition(b"\t")
+        if not rec or decode(path) != PROGRESS:
+            continue
+        parts = meta.decode().split()
+        if rev is None:
+            mode, oid, stage = parts
+            oid = None if stage != "0" or found is not None else oid
+        else:
+            mode, otype, oid = parts
+            if otype != "blob":
+                return None
+        found = Entry(PROGRESS, mode, oid)
+    return None if found is None or found.mode in (SYMLINK, GITLINK) else found
+
+
+def phase_states(text):
+    """{phase id: status} from progress.json's text, keyed as /repo-hygiene quick check B keys
+    them (phase_9_slug -> 9, a bare 9 stays 9); None when it does not parse."""
+    try:
+        phases = json.loads(text).get("phases")
+    except (ValueError, AttributeError, RecursionError):
+        return None
+    out = {}
+    items = (phases.items() if isinstance(phases, dict) else
+             enumerate(phases) if isinstance(phases, list) else [])
+    for k, p in items:
+        if not isinstance(p, dict):
+            continue
+        status = str(p.get("status") or "pending").strip().lower()
+        for i in (p.get("phase"), p.get("id"), k if isinstance(k, str) else None):
+            if i is None:
+                continue
+            m = re.match(r"^phase[_-]([^_]+)", str(i))
+            out.setdefault(m.group(1) if m else str(i), status)
+    return out
+
+
+def phase_of(name, states):
+    """'phase-9' or 'phase-9-notes' -> the phase id progress.json knows, else None."""
+    m = KEPT_DIR_RE.match(name)
+    if not m or not states:
+        return None
+    return next((c for c in (m.group(1), m.group(1).split("-")[0]) if c in states), None)
+
+
 def ext(path):
     return os.path.splitext(path)[1].lower()
 
 
-def check(git, entries, staged, diagrams_only, pool=None):
+def check(git, entries, staged, diagrams_only, pool=None, progress=None):
     """Return (findings {(kind, path): message}, unreadable [(path, reason)], checked count).
 
     entries are judged; pool is the whole tracked tree they belong to (the index for --staged),
-    where a dated directory's record line is looked for."""
+    where a dated directory's record line and a kept directory's KEPT.md are looked for.
+    progress() returns that tree's progress.json entry, or None; it is asked only when a phase
+    directory holds KEPT.md (see KEPT)."""
     findings, unreadable, checked = {}, [], set()
     names_apply = (lambda e: e.change in NAMING_CHANGES) if staged else (lambda e: True)
     image_apply = (lambda e: e.change in IMAGE_CHANGES) if staged else (lambda e: True)
@@ -681,6 +779,7 @@ def check(git, entries, staged, diagrams_only, pool=None):
     # no name under it is judged one by one. Under docs/architecture/ a dated directory is a
     # snapshot of past diagrams, the same finding as a dated diagram, not a record to be marked.
     dirs, named = {}, set()       # dir -> [("named", reason) | ("dated"|"snapshot", date), count]
+    under = {}                    # dir -> the paths judged under it
     if not diagrams_only:
         for e in entries:
             if not names_apply(e):
@@ -698,6 +797,7 @@ def check(git, entries, staged, diagrams_only, pool=None):
                     break
             if hit:
                 dirs.setdefault(hit[0], [hit[1], 0])[1] += 1
+                under.setdefault(hit[0], []).append(e.path)
                 continue
             reason = segment_reason(segs[-1], e.mode == GITLINK)
             if reason:
@@ -749,6 +849,27 @@ def check(git, entries, staged, diagrams_only, pool=None):
         images.append((e, measure))
         if measure:
             want(e, IMAGE_HEAD_BYTES)
+    # A kept directory (see KEPT): only one already reported for its name can be passed over, and
+    # with --staged only one in HEAD before this commit whose one addition is its KEPT.md.
+    added = {e.path for e in entries if names_apply(e)} if staged else set()
+    candidates = {}               # 'docs/<dir>/' -> its KEPT.md entry
+    for e in pool:
+        segs = e.path[len(DOCS):].split("/")
+        d = DOCS + segs[0] + "/"
+        if (len(segs) != 2 or segs[1] != KEPT or not KEPT_DIR_RE.match(segs[0])
+                or e.mode in (SYMLINK, GITLINK) or dirs.get(d, [("",)])[0][0] != "named"):
+            continue
+        if staged and (any(p != d + KEPT for p in under.get(d, ()))
+                       or not any(p.path.startswith(d) and p.path not in added for p in pool)):
+            continue
+        candidates[d] = e
+    prog = progress() if candidates and progress else None
+    if candidates:
+        for e in candidates.values():
+            if e.oid:
+                want(e, KEPT_HEAD_BYTES)
+        if prog is not None:
+            want(prog, PROGRESS_BYTES)
 
     blobs = read_blobs(git, wanted)
 
@@ -798,12 +919,33 @@ def check(git, entries, staged, diagrams_only, pool=None):
             "start of a line in its first %d lines ('> Dated record, <kind>, %s: not kept current. "
             "...'); a run's output or a phase's working material is not a record and leaves "
             "docs/ (work/phase-<id>/, an output path outside docs/, or docs/_archive/); a "
-            "directory meant to be current takes the date out of its name; %s"
-            % (d, how[1], _count(count, staged), RECORD_LINES, how[1], WRITER_TOO))
+            "directory meant to be current takes the date out of its name; %s; %s"
+            % (d, how[1], _count(count, staged), RECORD_LINES, how[1], CITED_TOO, WRITER_TOO))
+    def text_of(e):
+        try:
+            return decode(bytes_of(e))
+        except Unreadable as exc:
+            raise Unreadable("%s: %s" % (e.path, exc))
+
+    passed = set()                # kept directories, and those it cannot tell about
+    states = None                 # progress.json's phases, read once a non-empty KEPT.md needs them
+    for d, e in sorted(candidates.items()):
+        try:
+            if not text_of(e).strip():
+                continue          # an empty KEPT.md passes nothing over
+            if states is None:    # untracked, or not parsing: no phase can be told closed
+                states = (phase_states(text_of(prog)) if prog is not None else None) or {}
+        except Unreadable as exc:
+            unreadable.append((d, "cannot tell whether it is kept where it is: %s" % exc))
+            passed.add(d)
+            continue
+        pid = phase_of(d[len(DOCS):-1], states)
+        if pid is not None and states[pid] in DONE:
+            passed.add(d)
     for d, (how, count) in dirs.items():
-        if how[0] == "named":
-            findings[("not-persistent", d)] = "directory %s: %s; %s; %s; %s" % (
-                d, how[1][1], _count(count, staged), remedy(how[1]), WRITER_TOO)
+        if how[0] == "named" and d not in passed:
+            findings[("not-persistent", d)] = "directory %s: %s; %s; %s; %s; %s" % (
+                d, how[1][1], _count(count, staged), remedy(how[1]), CITED_TOO, WRITER_TOO)
         elif how[0] == "snapshot":
             findings[("not-persistent", d)] = (
                 "directory %s: its name carries a date (%s), so the diagrams in it are a snapshot "
@@ -907,7 +1049,9 @@ def main(argv=None):
             entries = list_staged(git)
         else:
             entries = list_index(git)
-        findings, unreadable, checked = check(git, entries, args.staged, args.diagrams_only, pool)
+        progress = lambda: progress_entry(git, args.rev)    # asked only when KEPT.md is found
+        findings, unreadable, checked = check(git, entries, args.staged, args.diagrams_only, pool,
+                                              progress)
     except Exception as exc:                    # CannotCheck, or a defect in this checker
         why = one_line(exc)
         if args.json:

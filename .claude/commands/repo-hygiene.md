@@ -24,10 +24,14 @@ drifts far enough to need a crusade.
   corrected or archived. Phase documentation and working material are not kept there: working
   material lives in `work/phase-<id>/` (§ 11, *Recording progress and documents*), and what a phase
   established that lasts goes into the canonical document it changes. A `docs/phase-*`, `wip-*`,
-  `tmp-*` or `scratch*` directory is the legacy place, moved there or archived (quick check B);
-  quick check H runs `docs-check` over the tracked tree for the rest (phase, session, working and
-  hand-off names, dated or not; dated records without their line; architecture diagrams too large
-  to read).
+  `tmp-*` or `scratch*` directory is the legacy place, moved there or archived (quick check B),
+  unless it is a kept one: a record that is never rewritten cites it, so it stays where it is,
+  whole, with or without a `KEPT.md`, and is named to the operator. Only a closed phase's own dir
+  carries the `KEPT.md` that names that record and ends check B's finding (§ 11; `/update-progress`
+  Step 3a). A working dir is not a canonical document, kept or not: no check or step of this pass
+  grounds, fixes or de-phases a file in one. Quick check H runs `docs-check` over the
+  tracked tree for the rest (phase, session, working and hand-off names, dated or not; dated
+  records without their line; architecture diagrams too large to read).
 - **Skills** (`.claude/commands/`, `.claude/skills/`, `.agents/skills/`) are current: every
   referenced tool/path/procedure exists and matches reality; no two skills duplicate one capability.
 - **Indexes are true**: whatever index surfaces exist (CLAUDE.md pointers, a skill picker, an
@@ -93,9 +97,14 @@ else:
 #     work/phase-<id>/ at the project root, and /update-progress Step 3a sweeps it when its phase
 #     closes. So a work/phase-<id>/ is a finding once its phase is terminal, or when no phase in
 #     progress.json carries that id; anything else directly under work/ is one at once. A working
-#     dir under docs/ is the legacy place (these defaults put it there until 2026-10-27) and is
-#     always a finding: what docs/ holds is § 11, *`docs/` holds what persists*, and working
-#     material is not among it.
+#     dir under docs/ is the legacy place (these defaults put it there until 2026-10-27) and is a
+#     finding whatever its phase: what docs/ holds is § 11, *`docs/` holds what persists*, and
+#     working material is not among it. In either place one dir is not a finding, a kept one: a
+#     phase-<id> dir of a closed phase whose KEPT.md (a file, not a link) is not empty. A record that
+#     is never rewritten (a terminal task's verify_result, an applied migration) cites it, so it
+#     stays where it is (/update-progress Step 3a); docs-check passes over the same dirs.
+#     Every finding below that would move a dir also says that a cited one stays: check B cannot see
+#     which records cite a dir, and a move it advised would break that citation for good (2026-11-21).
 #     Measured 2026-10-27: one project tracked 15 docs/phase-* dirs, 13 of them for closed phases.
 # DONE is the open-work renderer's terminal vocabulary (skills/open-work/open_work.py DONE), so a
 # phase is closed here exactly when it is closed there.
@@ -118,6 +127,22 @@ def _phase_states():   # phase id -> status, or None when progress.json cannot b
 def _phase_of(name):   # "phase-9" or "phase-9-notes" -> the id progress.json knows, else None
     m = re.match(r"^phase-(.+)$", name)
     return next((c for c in (m.group(1), m.group(1).split("-")[0]) if c in states), None) if m and states else None
+# What every finding that would move a dir adds. A dir that a record which is never rewritten cites
+# stays where it is, whole, and is named to the operator (/update-progress Step 3a), with or
+# without a KEPT.md; only a closed phase's own dir carries the KEPT.md that ends the finding.
+_CITED = "a record that is never rewritten (a terminal task's verify_result, an applied migration) cites it"
+_NAMED = f"; if {_CITED}, it stays where it is, whole, and is named to the operator (/update-progress Step 3a)"
+_KEEP = (f"; if {_CITED}, it stays where it is, whole, with a KEPT.md (a non-empty file, not a link) "
+         "naming that record (/update-progress Step 3a)")
+def _kept(d):   # a non-empty KEPT.md: the records that cite this dir, which stays (/update-progress Step 3a)
+    try:
+        k = d/"KEPT.md"
+        return k.is_file() and not k.is_symlink() and k.read_text(errors="replace").strip() != ""
+    except OSError:
+        return False
+# A legacy working dir: a dir directly under docs/ with one of these names. One pattern for B, C
+# and H, because C leaves out of the live surfaces exactly the dirs B judges, and H leaves them to B.
+WORKING_DIR_RE = re.compile(r"^(phase-|wip-|tmp-|scratch)")
 states = _phase_states()
 if (root/"work").is_dir():
     if states is None:
@@ -125,20 +150,26 @@ if (root/"work").is_dir():
     for d in sorted((root/"work").iterdir()) if states is not None else []:
         if d.name.startswith("."): continue   # .gitkeep and the like hold no working material
         if not (d.is_dir() and d.name.startswith("phase-")):
-            findings.append(f"B: work/{d.name} is not a phase working directory (work/phase-<id>/) — move it into its phase's, or out of the repository")
+            findings.append(f"B: work/{d.name} is not a phase working directory (work/phase-<id>/) — move it into its phase's, or out of the repository{_NAMED}")
             continue
         pid = _phase_of(d.name)
         if pid is None:
-            findings.append(f"B: work/{d.name}/ names no phase in progress.json — extract-then-archive it")
+            findings.append(f"B: work/{d.name}/ names no phase in progress.json — extract-then-archive it{_NAMED}")
+        elif states[pid] in DONE and _kept(d):
+            print(f"   (B: work/{d.name}/ of phase {pid} stays: its KEPT.md names the records that cite it)")
         elif states[pid] in DONE:
-            findings.append(f"B: work/{d.name}/ belongs to phase {pid}, which is {states[pid]} — extract-then-archive it (/update-progress Step 3a)")
+            findings.append(f"B: work/{d.name}/ belongs to phase {pid}, which is {states[pid]} — extract-then-archive it{_KEEP}")
 for d in sorted((root/"docs").glob("*")) if (root/"docs").exists() else []:
-    if d.is_dir() and re.match(r"^(phase-|wip-|tmp-|scratch)", d.name):
+    if d.is_dir() and WORKING_DIR_RE.match(d.name):
         pid = _phase_of(d.name)
-        if pid is not None and states[pid] in DONE:
-            findings.append(f"B: legacy working dir docs/{d.name}/ belongs to phase {pid}, which is {states[pid]} — extract-then-archive it (/update-progress Step 3a)")
+        if pid is not None and states[pid] in DONE and _kept(d):
+            print(f"   (B: legacy working dir docs/{d.name}/ of phase {pid} stays: its KEPT.md names the records that cite it)")
+        elif pid is not None and states[pid] in DONE:
+            findings.append(f"B: legacy working dir docs/{d.name}/ belongs to phase {pid}, which is {states[pid]} — extract-then-archive it{_KEEP}")
+        elif pid is not None:
+            findings.append(f"B: legacy working dir docs/{d.name}/ — working material lives in work/phase-<id>/; move it there while its work is open, or extract-then-archive it{_NAMED}, and its KEPT.md is written when phase {pid} closes")
         else:
-            findings.append(f"B: legacy working dir docs/{d.name}/ — working material lives in work/phase-<id>/; move it there while its work is open, or extract-then-archive it")
+            findings.append(f"B: legacy working dir docs/{d.name}/ — working material lives in work/phase-<id>/; move it there while its work is open, or extract-then-archive it{_NAMED}; only a closed phase's own dir, docs/phase-<id>/, carries a KEPT.md that ends this finding")
 
 # (C) broken repo-relative doc refs from live surfaces (docs, ops, root, and the project's own
 #     commands, overlays and skills)
@@ -167,6 +198,20 @@ surfaces = (list((root/"docs").rglob("*.md")) + list((root/"ops").rglob("*.md"))
             + list((root/".claude/local-overlays").glob("*.md"))
             + [root/n for n in ("README.md", "CLAUDE.md")])
 surfaces = [p for p in surfaces if p.exists() and "_archive" not in p.parts]
+# A working dir under docs/ (the dirs check B judges, by the same names) is not a live surface:
+# working material is not canonical, and a kept one stays whole and unchanged (PROJECT_CHARTER.md
+# § 11; /update-progress Step 3a). A broken ref from a file in one records what was there, and its
+# only remedy would be editing a file that nothing may change; counted here it came back on every
+# pass once the phase's close archived a loose file a kept dir links to (review, 2026-11-21). F
+# inherits the cut, because Step 3 never de-phases one either. The cut is printed, not hidden.
+def _in_working_dir(p):   # docs/<working dir>/...
+    parts = p.relative_to(root).parts
+    return len(parts) > 2 and parts[0] == "docs" and bool(WORKING_DIR_RE.match(parts[1]))
+_wdirs = sorted({p.relative_to(root).parts[1] for p in surfaces if _in_working_dir(p)})
+surfaces = [p for p in surfaces if not _in_working_dir(p)]
+if _wdirs:
+    _shown = ", ".join(f"docs/{w}/" for w in _wdirs[:10]) + (f" (+{len(_wdirs) - 10} more)" if len(_wdirs) > 10 else "")
+    print(f"   (surfaces: {len(_wdirs)} working dir(s) under docs/ excluded — working material, never a live surface, and a kept one is never revised; check B judges them: {_shown})")
 # The distribution manifest says which commands and skills the engine delivered. It is read once,
 # here. A manifest with no `files` map (absent, null, not a map) is unreadable too. It must not
 # crash this one script, which would silence every check (see A), nor count a distributed file as
@@ -310,7 +355,7 @@ elif (root/"docs").is_dir():
     for h in hs or []:
         p = str(h.get("path", ""))
         seg = p.split("/")
-        if len(seg) >= 2 and re.match(r"^(phase-|wip-|tmp-|scratch)", seg[1]) and (root/"docs"/seg[1]).is_dir():
+        if len(seg) >= 2 and WORKING_DIR_RE.match(seg[1]) and (root/"docs"/seg[1]).is_dir():
             continue   # B's
         by_kind.setdefault(str(h.get("kind")), []).append(p)
     for k in sorted(by_kind, key=lambda k: (list(H_MEANS).index(k) if k in H_MEANS else len(H_MEANS), k)):
@@ -431,9 +476,19 @@ Go through **every file** in `docs/` (excluding `_archive/`) and **every skill**
 |---|---|---|
 | `current-canonical` | Describes today's system truthfully | none |
 | `needs-update` | Right home, stale substance (paths/tools/procedures drifted) | fix in place, verify claims against the live tree |
-| `stale-archive` | Superseded or dead | **extract-then-archive**: repoint/extract any live inbound refs FIRST, then move it to `docs/_archive/` under its own name, the destination named in full (`mkdir -p docs/_archive && git mv <path> docs/_archive/<name>`; a dir with the block `/update-progress` Step 3a ships) — never blind-move, never delete |
+| `stale-archive` | Superseded or dead | **extract-then-archive**: repoint/extract any live inbound refs FIRST, then move it to `docs/_archive/` under its own name, the destination named in full (`mkdir -p docs/_archive && git mv <path> docs/_archive/<name>`; a dir with the block `/update-progress` Step 3a ships) — never blind-move, never delete, and never a file in a working dir that a record cites (`kept`, below) |
 | `trail-ok` | A dated record (§ 11, *`docs/` holds what persists*) carrying its record line, or a dated hand-off under `docs/handoff/` | leave; make sure its record line names where the current state is kept |
+| `kept` | A file in a kept working dir: one that a record which is never rewritten cites (a terminal task's `verify_result`, an applied migration whose checksum is enforced), **with or without a `KEPT.md`**. A closed phase's own `docs/phase-<id>/` carries one (a non-empty file, not a link) naming those records; a dir under another name (a `docs/wip-*`) carries none, and check B goes on reporting it (§ 11; `/update-progress` Step 3a) | leave it, and every file beside it: never fix, ground, de-phase, move, rename or archive one, because the citation would break for good. Name a kept dir that has no `KEPT.md` to the operator in the pass report. What lasted in it was copied out at its phase's close; if something canonical was missed, copy it out now and leave the file where it is |
 | `duplicate-consolidate` | Same substance stated in ≥2 places | pick ONE canonical home, others become pointers |
+
+**Before a working dir's files get any other disposition, find out whether a record cites the
+dir.** A working dir is a legacy `docs/phase-*`, `wip-*`, `tmp-*` or `scratch*` dir (the ones quick
+check B reads), or any other dir a phase left there for its work. Look for its path in the terminal
+tasks of `progress.json` and in the compacted bodies beside it
+(`git grep -n -F 'docs/<dir>' -- progress.json docs/_archive/progress-sidecars/`), and in what the
+project has applied and cannot change (a migration whose runner enforces its checksum, a published
+release). If one cites it, every file in it is `kept`; a `KEPT.md` only records that, and its absence
+changes nothing.
 
 Verification discipline: a "current" verdict requires the claims to be **checked against the live
 tree** (referenced tool exists, path resolves, procedure matches the code), not read-and-nodded.
@@ -454,7 +509,8 @@ runs, it grounds whatever the per-session rotation has left oldest (sessions get
 dormant — the clock catches what session cadence missed). Both use the SAME `grounded` map, so
 nothing is double-verified.
 
-1. **Pick the slice.** From the live skills + canonical docs, take the least-recently-grounded
+1. **Pick the slice.** From the live skills + canonical docs (`/update-progress` Step 2b's
+   rotation set, which leaves the working dirs out), take the least-recently-grounded
    files per the `grounded` map in `.claude/hygiene-state.json` (never-grounded first). Bound the
    slice — 3–5 files, or roughly what one pass can verify properly. The bound is the point.
 
@@ -504,17 +560,19 @@ After the sweep, reconcile every index surface to the post-sweep reality:
 
 ## Step 3 — Timeless-canon check (de-phased canonical surfaces)
 
-Grep the **project-owned canonical surfaces this step may fix in place** — `docs/`, `ops/`
-runbooks, root `README.md` and `CLAUDE.md`, project-specific skills, and any externally-served
-knowledge base — for process metadata (`Session N`, `Phase N`, dotted task IDs, dated anchors) that
-leaked in since the last pass.
+Grep the **project-owned canonical surfaces this step may fix in place** — `docs/` outside
+`_archive/` and its working dirs (a working dir is working material, and a kept one is never
+revised: Step 1's `kept` row), `ops/` runbooks, root `README.md` and `CLAUDE.md`,
+project-specific skills, and any externally-served knowledge base — for process metadata
+(`Session N`, `Phase N`, dotted task IDs, dated anchors) that leaked in since the last pass.
 
 Quick check F sizes this slice, and the property that must hold is directional: **F never counts a
-file this step may not touch.** It reads the root docs, `docs/`, `ops/` and the project's own skills
-under `.claude/skills/` and `.agents/skills/` (a skill counts only when the distribution manifest
-shows it is not distributed, and with no readable manifest none does). It does not read a served
-KB, a project command under `.claude/commands/` or an overlay under `.claude/local-overlays/`
-(check C reads both for broken refs), so it under-reports — which costs a smaller
+file this step may not touch.** It reads the root docs, `docs/` outside its working dirs, `ops/`
+and the project's own skills under `.claude/skills/` and `.agents/skills/` (a skill counts only when
+the distribution manifest shows it is not distributed, and with no readable manifest none does). It
+does not read a working dir under `docs/` (check C leaves those out of its surfaces), a served KB, a
+project command under `.claude/commands/` or an overlay under `.claude/local-overlays/` (check C
+reads both for broken refs), so it under-reports — which costs a smaller
 slice this pass. The reverse would hand the step a finding whose only remedy is forbidden, and a
 check like that is one agents learn to skip.
 
@@ -1091,7 +1149,12 @@ extracted from this file, against fixtures.
 - **Extract-then-archive** — a "closed" dir can hold live dependencies (a skill's default paths,
   a test fixture, a cited rule). Repoint every live inbound reference first, then move it to
   `docs/_archive/<name>` with the destination named in full (Step 1's `stale-archive` row); a
-  currency check run after the move must show zero new broken refs.
+  currency check run after the move must show zero new broken refs. That check reads quick check
+  C's live surfaces, which leave the legacy working dirs out. A link from inside any kept dir that
+  the move breaks records what was there: it is never fixed, and it does not count. **A working
+  dir that a record which is never rewritten cites stays where it is, whole, with or without a
+  `KEPT.md`** (Step 1's `kept` row; `/update-progress` Step 3a): nothing in it is moved, archived
+  or repointed, and one with no `KEPT.md` is named to the operator in the pass report.
 - If in-progress work owns files (an active phase's handoff, an engine mid-rebuild), leave that
   work's files alone and note the dependency.
 - **Bounded, never a crusade.** Steps 1a/3/3a run as bounded slices — small always-on consolidation
