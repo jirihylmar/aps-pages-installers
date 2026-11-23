@@ -871,8 +871,15 @@ which Claude Code lists as a skill too — name it `<name>-<code>`: its own name
 so typing it finds it, then this project's code, so a reader of `.claude/skills/` can tell it from
 the skills that arrive by distribution and from the ones a Claude installation brings. The code is
 declared once in `.claude/project-code` — one line, 2-8 lowercase letters or digits, starting with
-a letter — and is this project's own file. The commit guard refuses a newly added skill without
-the suffix and says how to declare the code; skills that existed before the rule are not renamed.
+a letter — and is this project's own file. The commit guard refuses a skill added under a new
+name without the suffix (one renamed to a new name included; one moved under its own name, such as
+a command made a skill, is not new) and says how to declare the code; skills that existed before
+the rule are not renamed. A skill a central party delivers (distributed, carried, or brought by
+central access's kit) keeps its own name: the guard accepts it by that exact name once
+syndicate-playbooks-examples declares the name central and its next distribution brings the guard
+with it, at every commit the guard runs on, a merge concluded by `git commit` included. One it has
+not declared is refused like any other, so ask that repository to declare it
+(`/syndicate-request`); never rename it.
 
 ## 13. Definition of complete
 
