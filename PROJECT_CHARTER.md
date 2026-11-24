@@ -877,9 +877,10 @@ a command made a skill, is not new) and says how to declare the code; skills tha
 the rule are not renamed. A skill a central party delivers (distributed, carried, or brought by
 central access's kit) keeps its own name: the guard accepts it by that exact name once
 syndicate-playbooks-examples declares the name central and its next distribution brings the guard
-with it, at every commit the guard runs on, a merge concluded by `git commit` included. One it has
-not declared is refused like any other, so ask that repository to declare it
-(`/syndicate-request`); never rename it.
+with it, at every commit the guard runs on, a merge concluded by `git commit` included. A carried
+or kit skill's name new to a commit is accepted only as `.claude/skills/<name>/SKILL.md`, where
+such a skill is delivered. One it has not declared is refused like any other, so ask that
+repository to declare it (`/syndicate-request`); never rename it.
 
 ## 13. Definition of complete
 

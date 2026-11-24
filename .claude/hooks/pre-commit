@@ -194,8 +194,12 @@ done < <(git diff --cached --name-only -z --diff-filter=A "$BASE" 2>/dev/null)
 # .agents/skills/<name>/SKILL.md, .claude/commands/<name>.md). The diff is read with --no-renames,
 # so a skill renamed to a new name is a new skill; one moved under the same name (a command made a
 # skill, a skill moved between .claude and .agents) is not. A directory the parent held without a
-# SKILL.md is not a skill, so adding its SKILL.md adds a new one. Existing skills are never flagged
+# SKILL.md is not a skill, so adding its SKILL.md adds a new one. Only a file counts: a directory
+# the parent held under the name SKILL.md or <name>.md is not a skill either, so the file that
+# replaces it is new. Existing skills are never flagged
 # and never renamed (operator: new skills respect the convention; no estate-wide rename).
+# On `git commit --amend` the parent read is the commit being amended, so a name that commit added
+# on a path that never ran this guard (a clean cherry-pick, a rebase) reads as existing.
 # The code is declared once in .claude/project-code (index copy if staged, else working tree).
 #
 # DISTRIBUTED_NAMES is the set this guard ships with. scripts/test-skill-naming.sh in
@@ -209,19 +213,29 @@ done < <(git diff --cached --name-only -z --diff-filter=A "$BASE" 2>/dev/null)
 # e.g. access-integrate). The engine declares each name in one of those files, and the same test
 # pins this line to their union. Both deliver a skill only as a directory under .claude/skills/, so
 # a CENTRAL_NAMES name new to the commit passes only there; a new command or .agents skill of that
-# name is the project's own. A project's guard accepts a newly declared name only once the
+# name is refused, and the refusal names the one place the name is accepted rather than a suffix.
+# A project's guard accepts a newly declared name only once the
 # engine's next distribution brings it this guard. The guard decides by the name, never by how it
 # arrived, and has no merge exception: a merge concluded by `git commit` (a lane cut before the
 # delivery) passes for a declared name and is refused for an undeclared unsuffixed one, as a
 # direct commit is (the operator, 2026-11-23: "we need to keep central skills under our control").
-# It refuses at every commit it runs on, and only there: a clean `git merge`, a fast-forward or
-# pull, a clean cherry-pick or rebase, a pull request merged on the server and
-# `git commit --no-verify` do not run it.
+# It refuses only at a commit it runs on. Measured on git 2.43, it runs on `git commit`, a merge
+# concluded by it or by `git merge --continue`, a conflicted cherry-pick's or revert's `--continue`,
+# and a rebase's `reword` step (and a `merge -c` step of `git rebase -r`), which runs it as
+# `git commit --amend` on the commit the step has just made, so there it refuses no name. It does
+# not run on a rebase's other steps (pick, squash, fixup, edit, and a conflicted step's
+# `git rebase --continue`, unless that step is first committed with `git commit`), a clean
+# `git merge`, a fast-forward or pull, a clean cherry-pick or revert, `git am`, a pull request merged
+# on the server or `git commit --no-verify`. Other ways git makes a commit were not measured.
 #
 # A name can match either list only when it is plain (a-z, 0-9, -): the lists are space-separated,
-# so a directory name holding a space could otherwise span two entries. The same test pins the
-# naming code below (project_code() to the end of the loop, comments aside) to its reviewed text,
-# so the names it accepts cannot widen without a change to that test.
+# so a directory name holding a space could otherwise span two entries. The same test pins this
+# hook from project_code() below through the refusal's exit 1 to its reviewed text, byte for byte,
+# comment lines included, so an edit to the decision fails it until the test changes with it; what
+# follows the refusal runs only when no name was refused. The test also proves the decision's
+# behaviour on real commits. It does not claim that no other edit to this hook could change the
+# outcome. This hook is the engine's: any change to it is reviewed in syndicate-playbooks-examples
+# and reaches a project only by distribution, which overwrites a copy that differs.
 # ---------------------------------------------------------------------------
 DISTRIBUTED_NAMES=" add-work central-sign-in check-aws consult-claude consult-codex distribute-defaults docs-check generate-architecture generate-phases naming-conventions open-work operational-mail operations-check overlay-check progress-check public-addresses refs-check repo-hygiene server-report setup setup-workflow-only start-session syndicate-connect syndicate-request syndicate-refresh-remote unattended-check update-progress "
 CENTRAL_NAMES=" access-integrate access-maintain databridge-terms "
@@ -239,6 +253,7 @@ project_code() {
 naming_violations=""
 naming_code="$(project_code)"
 naming_code_ok=0
+naming_code_needed=0
 printf '%s' "$naming_code" | grep -qE '^[a-z][a-z0-9]{1,7}$' && naming_code_ok=1
 while IFS= read -r -d '' path; do
   name=""; parent=""
@@ -252,15 +267,22 @@ while IFS= read -r -d '' path; do
     *) continue ;;
   esac
   # A skill of this name existed before this commit, in any of the three places (an edit, a re-add,
-  # a move under the same name): not a new skill. The SKILL.md itself, never just its directory.
-  git cat-file -e "$BASE:.claude/skills/$name/SKILL.md" 2>/dev/null && continue
-  git cat-file -e "$BASE:.agents/skills/$name/SKILL.md" 2>/dev/null && continue
-  git cat-file -e "$BASE:.claude/commands/$name.md" 2>/dev/null && continue
+  # a move under the same name): not a new skill. The SKILL.md itself, never just its directory,
+  # and a file (a blob), never a directory that happens to carry the name.
+  [ "$(git cat-file -t "$BASE:.claude/skills/$name/SKILL.md" 2>/dev/null)" = blob ] && continue
+  [ "$(git cat-file -t "$BASE:.agents/skills/$name/SKILL.md" 2>/dev/null)" = blob ] && continue
+  [ "$(git cat-file -t "$BASE:.claude/commands/$name.md" 2>/dev/null)" = blob ] && continue
   case "$name" in
     ""|*[!abcdefghijklmnopqrstuvwxyz0123456789-]*) ;;   # not plain: no list entry can match it
     *)
       case "$DISTRIBUTED_NAMES" in *" $name "*) continue ;; esac
-      case "$path" in .claude/skills/*) case "$CENTRAL_NAMES" in *" $name "*) continue ;; esac ;; esac ;;
+      case "$CENTRAL_NAMES" in *" $name "*)
+        case "$path" in .claude/skills/*) continue ;; esac
+        # A declared central name anywhere else: not the project's to suffix, and not delivered there.
+        naming_violations="${naming_violations}  ${path}  (new skill '${name}' — a central skill's name, accepted only at .claude/skills/${name}/SKILL.md, where it is delivered)
+"
+        continue ;;
+      esac ;;
   esac
   case "$name" in syndicate-*) continue ;; esac
   if [ "$naming_code_ok" = 1 ]; then
@@ -270,6 +292,7 @@ while IFS= read -r -d '' path; do
   else
     naming_violations="${naming_violations}  ${path}  (new skill '${name}' — this project has no valid .claude/project-code yet)
 "
+    naming_code_needed=1
   fi
 done < <(git diff --cached --no-renames --name-only -z --diff-filter=A "$BASE" 2>/dev/null)
 
@@ -282,13 +305,14 @@ if [ -n "$naming_violations" ]; then
     echo "tell it from distributed skills and from ones the Claude installation brings. The"
     echo "code is a SUFFIX: the skill's own name stays first, so typing it still finds it."
     echo "If this project wrote the skill, give it the suffix. If a central party delivered it"
-    echo "(a vendored kit, a carried skill), do not rename it: ask syndicate-playbooks-examples"
-    echo "(through /syndicate-request) to declare its name. It passes once that repository's"
-    echo "next distribution brings this guard with the name declared. Only a skill a central"
-    echo "party delivers is declared, never one a project wrote."
+    echo "(a vendored kit, a carried skill), do not rename it. A name already declared central"
+    echo "passes only at .claude/skills/<name>/SKILL.md, where it is delivered. For any other,"
+    echo "ask syndicate-playbooks-examples (through /syndicate-request) to declare its name. It"
+    echo "passes once that repository's next distribution brings this guard with the name declared."
+    echo "Only a skill a central party delivers is declared, never one a project wrote."
     if [ "$naming_code_ok" = 1 ]; then
       echo "This project's code is '${naming_code}' (.claude/project-code)."
-    else
+    elif [ "$naming_code_needed" = 1 ]; then
       echo "Declare the code once — one line, 2-8 lowercase letters/digits, starting with a"
       echo "letter, usually the repo name's initials (models-trainer -> mt):"
       echo "  printf 'mt\\n' > .claude/project-code && git add .claude/project-code"
